@@ -19,7 +19,7 @@ def save_user_data(user_data):
         json.dump(user_data, file)  # Save dictionary as JSON to the file
 
 # Function to handle communication with the connected client
-def handle_client(client_socket, user_data):
+def handle_client(client_socket,clients, user_data):
     # Using 'with' to automatically close the socket after the connection ends
     with client_socket:
         print(f'Handling connection from {client_socket.getpeername()}')  # Log client's IP and port
@@ -55,6 +55,15 @@ def handle_client(client_socket, user_data):
                         # Send confirmation to the client
                         client_socket.send(b'REGISTERED')
 
+                elif command == 'LOGIN':
+                    client_name = message_parts[0]  # Username
+                    client_password = message_parts[1]  # Password
+                    if client_name in user_data and user_data[client_name] == client_password:
+                        clients[client_name] = client_socket
+                        client_socket.send(b'LOGIN_SUCCESS')
+                    else:
+                        client_socket.send(b'LOGIN_FAILED')
+
             except Exception as e:
                 # Log any error that occurs during client handling
                 print(f"Error handling client: {e}")
@@ -74,6 +83,8 @@ def main():
     # Load any existing user data from the file
     user_data = load_user_data()
 
+    clients = {}
+
     print("Server started, waiting for connections...")
 
     # Main loop to accept incoming connections
@@ -83,7 +94,7 @@ def main():
         print(f'Connection from {addr}')  # Log client's address
         
         # Start a new thread to handle each connected client
-        client_thread = threading.Thread(target=handle_client, args=(client_socket, user_data))
+        client_thread = threading.Thread(target=handle_client, args=(client_socket, clients, user_data))
         client_thread.start()  # Run the handle_client function in a separate thread
 
 if __name__ == "__main__":

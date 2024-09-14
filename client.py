@@ -12,12 +12,16 @@ def read_public_key(file_path):
 
 # Function to register the user by sending the username, hashed password, and public key
 def register_user(sock, username, password, public_key):
-    hashed_password = hash_password(password)
-    # Construct the registration message
-    message = f'REGISTER:{username}:{hashed_password}:{public_key}'
+    message = f'REGISTER:{username}:{password}:{public_key}'
     # Send the message to the server
     sock.send(message.encode())
     # Wait for the server's response
+    response = sock.recv(1024).decode()
+    return response
+
+def login_user(sock, username, password):
+    message = f'LOGIN:{username}:{password}'
+    sock.sendall(message.encode())
     response = sock.recv(1024).decode()
     return response
 
@@ -32,18 +36,30 @@ def main():
         sock.connect((server_ip, server_port))
         print("Connected to server.")
 
-        # User input for registration
+        # Register or login
+        action = input("Enter 'register' to register or 'login' to login: ")
         username = input("Enter your username: ")
-        password = input("Enter your password: ")
+        password = hash_password(input("Enter your password: "))
         
-        # Read the public key from the file system
-        public_key_path = "/home/chatur/public_key.pem"
-        public_key = read_public_key(public_key_path)
-        print(public_key)
+        if action == 'register':
+            # Read the public key from the file system
+            public_key_path = "/home/chatur/public_key.pem"
+            public_key = read_public_key(public_key_path)
 
-        # Register the user and receive server response
-        response = register_user(sock, username, password, public_key)
-        print(f"Server response: {response}")
+            # Register the user and receive server response
+            response = register_user(sock, username, password, public_key)
+            print(f"Server response: {response}")
+
+        elif action == 'login':
+            response = login_user(sock, username, password)
+            if response == 'LOGIN_SUCCESS':
+                print("Login successful.")
+                # Continue with chat functionality
+            else:
+                print("Login failed.")
+        else:
+            print("Invalid action")
+
 
 if __name__ == "__main__":
     main()
