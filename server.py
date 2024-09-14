@@ -4,6 +4,7 @@ import json
 
 # File to store user data (e.g., username and password)
 USER_DATA_FILE = 'user_data.json'
+clients = {}
 
 # Function to load user data from a file (returns a dictionary)
 def load_user_data():
@@ -63,6 +64,11 @@ def handle_client(client_socket,clients, user_data):
                         client_socket.send(b'LOGIN_SUCCESS')
                     else:
                         client_socket.send(b'LOGIN_FAILED')
+            
+                elif command == 'GET_USERS':
+                    print(clients)
+                    user_list = ':'.join(clients.keys())
+                    client_socket.send(user_list.encode())
 
             except Exception as e:
                 # Log any error that occurs during client handling
@@ -83,7 +89,6 @@ def main():
     # Load any existing user data from the file
     user_data = load_user_data()
 
-    clients = {}
 
     print("Server started, waiting for connections...")
 

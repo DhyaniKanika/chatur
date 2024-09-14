@@ -54,7 +54,12 @@ def main():
             response = login_user(sock, username, password)
             if response == 'LOGIN_SUCCESS':
                 print("Login successful.")
-                # Continue with chat functionality
+
+                # Request and display the list of active users
+                sock.send(b'GET_USERS')
+                response = sock.recv(1024)
+                user_list = response.decode().split(':')
+               
             else:
                 print("Login failed.")
         else:
