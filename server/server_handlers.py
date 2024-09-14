@@ -1,4 +1,4 @@
-from utils import save_user_data, load_user_public_key
+from server.server_utils import save_user_data, load_user_public_key
 
 def handle_client(client_socket, clients, user_data, user_public_keys):
     with client_socket:
