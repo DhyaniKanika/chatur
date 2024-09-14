@@ -1,7 +1,7 @@
-# client_utils.py
-import socket
+
 import hashlib
 import ssl
+from client_keytools import *
 
 TRUSTSTORE_PATH = 'truststore.pem'
 
@@ -100,3 +100,25 @@ def initiate_chat(client_socket, recipient_name):
     except Exception as e:
         print(f"Error initiating chat with {recipient_name}: {e}")
         return None
+
+# Diffie-Hellman key exchange logic (shared between Alice and Bob)
+def diffie_hellman_key_exchange(sock, private_rsa_key, recipient_rsa_public_key, is_initiator):
+    private_dh_key, public_dh_key = generate_dh_keys()
+    
+    # Step 2: If initiator, send DH public key first
+    if is_initiator:
+        sock.sendall(encrypt_message_rsa(serialize_public_key(public_dh_key), recipient_rsa_public_key))
+        other_dh_public_key = receive_encrypted_dh_key(sock, private_rsa_key)
+    else:
+        other_dh_public_key = receive_encrypted_dh_key(sock, private_rsa_key)
+        sock.sendall(encrypt_message_rsa(serialize_public_key(public_dh_key), recipient_rsa_public_key))
+    
+    return derive_shared_secret(private_dh_key, public_dh_key, other_dh_public_key)
+
+
+def receive_encrypted_dh_key(sock, private_rsa_key):
+    # Receive the encrypted DH public key from the server
+    encrypted_dh_public_key = sock.recv(1024)
+    # Decrypt the DH public key using the client's own RSA private key
+    decrypted_dh_public_key = decrypt_message_rsa(decrypt_message_rsa(encrypted_dh_public_key, private_rsa_key))
+    return decrypted_dh_public_key

@@ -1,5 +1,15 @@
 import socket
 import hashlib
+import ssl
+
+TRUSTSTORE_PATH = 'truststore.pem'
+
+def create_ssl_context():
+    # Create SSL context for server authentication
+    context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    
+    # Load CA certificates for verifying the server
+    context.load_verify_locations(cafile=TRUSTSTORE_PATH)
 
 # Function to hash the password using SHA-256
 def hash_password(password):
@@ -129,12 +139,14 @@ def initiate_chat(client_socket, recipient_name):
 # Main function to connect to the server and register
 def main():
     # Server details
-    server_ip = 'chat.chatur.com'
-    server_port = 12345       
+    server_hostname = 'chat.chatur.com'
+    server_port = 12345
+    context = create_ssl_context()       
 
     # Create a socket and connect to the server
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.connect((server_ip, server_port))
+    client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    with context.wrap_socket(client_socket, server_hostname) as sock:
+        sock.connect((server_hostname, server_port))
         print("Connected to server.")
 
         # Register or login
