@@ -1,4 +1,3 @@
-
 from cryptography.hazmat.primitives.asymmetric import rsa, padding
 from cryptography.hazmat.primitives import serialization, hashes
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
@@ -14,7 +13,7 @@ import os
 # Load RSA keys from files
 def load_private_key_from_file(password: bytes):
     # Load and decrypt the private key
-    with open('home/chatur/keystore/client.key', 'rb') as f:
+    with open('keystore/client.key', 'rb') as f:
         private_key = load_pem_private_key(
             f.read(),
             password=password,

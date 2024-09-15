@@ -1,4 +1,3 @@
-# client.py
 import socket
 from client_utils import *
 def main():
@@ -22,7 +21,7 @@ def main():
 
         if action == 'register':
             # Read the public key from the file system
-            public_key_path = "/home/chatur/public_key.pem"
+            public_key_path = "truststore/public_key.pem"
             public_key = read_public_key(public_key_path)
 
             # Register the user and receive server response

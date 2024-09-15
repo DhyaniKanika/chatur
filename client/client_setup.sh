@@ -79,7 +79,7 @@ prompt_for_password
 # Generate client RSA key pair
 echo "Generating client RSA key pair..."
 if openssl genpkey -algorithm RSA -out ~/keystore/client.key -aes256 -pass pass:"$PASSWORD" && \
-   openssl rsa -in ~/keystore/client.key -pubout -out ~/keystore/client.pub; then
+   openssl rsa -in ~/keystore/client.key -pubout -out ~/keystore/public_key.pem; then
     echo "Client RSA key pair generated successfully."
 else
     echo "Failed to generate client RSA key pair."

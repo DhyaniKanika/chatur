@@ -53,7 +53,7 @@ def handle_registration(client_socket, message_parts, user_data):
         save_user_data(user_data)
 
         # Save client's public key to a file
-        with open(f'client_{client_name}_public_key.pem', 'w') as f:
+        with open(f'truststore/client_{client_name}_public_key.pem', 'w') as f:
             f.write(client_public_key)
 
         client_socket.send(b'REGISTERED')
