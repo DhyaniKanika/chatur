@@ -1,9 +1,10 @@
 
 import hashlib
 import ssl
+import subprocess
 from client_keytools import *
 
-TRUSTSTORE_PATH = 'truststore.pem'
+TRUSTSTORE_PATH = 'truststore'
 
 def create_ssl_context():
     # Create SSL context for server authentication
@@ -127,3 +128,32 @@ def receive_encrypted_dh_key(sock, private_rsa_key):
     # Decrypt the DH public key using the client's own RSA private key
     decrypted_dh_public_key = decrypt_message_rsa(decrypt_message_rsa(encrypted_dh_public_key, private_rsa_key))
     return decrypted_dh_public_key
+
+
+def decrypt_truststore(encrypted_file: str, decrypted_file: str, password: str):
+    """Decrypt the encrypted truststore file."""
+    try:
+        subprocess.run([
+            'openssl', 'enc', '-d', '-aes-256-cbc',
+            '-in', encrypted_file,
+            '-out', decrypted_file,
+            '-pass', f'pass:{password}'
+        ], check=True)
+        print(f"Decrypted truststore saved to: {decrypted_file}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during decryption: {e}")
+        raise
+
+def encrypt_truststore(decrypted_file: str, encrypted_file: str, password: str):
+    """Encrypt the truststore file."""
+    try:
+        subprocess.run([
+            'openssl', 'enc', '-aes-256-cbc',
+            '-salt', '-in', decrypted_file,
+            '-out', encrypted_file,
+            '-pass', f'pass:{password}'
+        ], check=True)
+        print(f"Encrypted truststore saved to: {encrypted_file}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during encryption: {e}")
+        raise

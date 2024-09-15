@@ -6,7 +6,8 @@ def main():
     server_hostname = 'chat.chatur.com'
     server_port = 12345
     context = create_ssl_context()
-    private_rsa_key, public_rsa_key = load_keys_from_files()
+    enc_password = input("enter the password for decrypting keys").encode()
+    private_rsa_key = load_private_key_from_file(enc_password)
 
     # Create a socket and connect to the server
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
