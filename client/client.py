@@ -1,12 +1,12 @@
 # client.py
 import socket
-from client_utils import create_ssl_context, hash_password, read_public_key, register_user, login_user, send_message, receive_message, initiate_chat, listen_for_incoming_requests
-
+from client_utils import *
 def main():
     # Server details
     server_hostname = 'chat.chatur.com'
     server_port = 12345
     context = create_ssl_context()
+    private_rsa_key, public_rsa_key = load_keys_from_files()
 
     # Create a socket and connect to the server
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -15,7 +15,7 @@ def main():
         print("Connected to server.")
 
         # Register or login
-        action = input("Enter 'register' to register or 'login' to login: ")
+        action = input("Enter 'register' to register or 'login' to login: ").strip().lower()
         username = input("Enter your username: ")
         password = hash_password(input("Enter your password: "))
 
@@ -43,29 +43,56 @@ def main():
                 mode = input("Do you want to initiate a chat or wait for a request? (initiate/wait): ").strip().lower()
 
                 if mode == 'initiate':
+                    # User initiates chat by providing the recipient's name
                     recipient_name = input("Enter the recipient's name: ").strip()
-                    chat_with = initiate_chat(sock, recipient_name)
+                    chat_partner, recipient_public_key = initiate_chat(sock, recipient_name)
 
-                    if chat_with:
+                    if chat_partner and recipient_public_key:
+                        # Perform Diffie-Hellman key exchange to derive a shared secret key
+                        shared_secret_key = diffie_hellman_key_exchange(sock, private_rsa_key, recipient_public_key, True)
+                        
                         while True:
-                            message = input(f"Message to {chat_with}: ").strip()
-                            send_message(sock, message, chat_with)
+                            # User inputs a message to send
+                            outgoing_message = input(f"{username}: ").strip()
+                            
+                            # Encrypt and send the message
+                            encrypted_message = encrypt_message_symmetric(shared_secret_key, outgoing_message, username)
+                            send_message(sock, encrypted_message, chat_partner)
 
                             # Listen for incoming messages
-                            receive_message(sock)
+                            incoming_encrypted_message = receive_message(sock)
+                            if incoming_encrypted_message:
+                                # Decrypt the received message
+                                decrypted_message = decrypt_message_symmetric(shared_secret_key, incoming_encrypted_message, recipient_name)
+                                print(f"{recipient_name}: {decrypted_message}")
+                            else:
+                                break
 
                 elif mode == 'wait':
+                    # User waits for an incoming chat request
                     print("Waiting for an incoming chat request...")
-                    sender_name = listen_for_incoming_requests(sock)
+                    sender_name, sender_public_key = listen_for_incoming_requests(sock)
 
-                    if sender_name:
+                    if sender_name and sender_public_key:
+                        # Perform Diffie-Hellman key exchange to derive a shared secret key
+                        shared_secret_key = diffie_hellman_key_exchange(sock, private_rsa_key, sender_public_key, False)
+                        
                         while True:
-                            message = input(f"Message to {sender_name}: ").strip()
-                            send_message(sock, message, sender_name)
-
                             # Listen for incoming messages
-                            receive_message(sock)
+                            incoming_encrypted_message = receive_message(sock)
+                            if incoming_encrypted_message:
+                                # Decrypt the received message
+                                decrypted_message = decrypt_message_symmetric(shared_secret_key, incoming_encrypted_message, sender_name)
+                                print(f"{sender_name}: {decrypted_message}")
+                            else:
+                                break
 
+                            # User inputs a message to send
+                            outgoing_message = input(f"{username}: ").strip()
+                            
+                            # Encrypt and send the message
+                            encrypted_message = encrypt_message_symmetric(shared_secret_key, outgoing_message, username)
+                            send_message(sock, encrypted_message, sender_name)
                 else:
                     print("Invalid mode selected.")
                     

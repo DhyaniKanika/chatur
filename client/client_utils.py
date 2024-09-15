@@ -37,18 +37,20 @@ def login_user(sock, username, password):
 
 def send_message(client_socket, message, recipient_name):
     try:
-        client_socket.send(f'MESSAGE_TO:{recipient_name}:{message}'.encode())
+        client_socket.send(f'MESSAGE:{recipient_name}:{message}'.encode())
     except Exception as e:
         print(f"Error sending message to {recipient_name}: {e}")
 
-def receive_message(client_socket):
+def receive_message(client_socket, username):
     try:
         server_message = client_socket.recv(1024).decode()
-        if server_message.startswith('MESSAGE_FROM'):
-            _, sender_name, message = server_message.split(':', 2)
-            print(f"Message from {sender_name}: {message}")
+        if server_message.startswith('MESSAGE'):
+            _, reciever_name, message = server_message.split(':', 2)
+            if reciever_name == username:
+                return message 
         else:
-            print(f"Unexpected message: {server_message}")
+            print(f"Unexpected message")
+            return None
     except Exception as e:
         print(f"Error receiving message: {e}")
 
@@ -62,11 +64,16 @@ def listen_for_incoming_requests(client_socket):
                 response = input(f"Accept chat from {sender_name}? (yes/no): ").strip().lower()
                 if response == 'yes':
                     client_socket.send(f'ACCEPT_CHAT:{sender_name}'.encode())
-                    public_key_pem = client_socket.recv(1024).decode()
-                    with open(f'{sender_name}_public_key.pem', 'w') as f:
-                        f.write(public_key_pem)
-                    print(f"Chat with {sender_name} accepted. You can start messaging.")
-                    return sender_name
+                    response = client_socket.recv(1024).decode()
+                    if response == 'CHAT_READY':
+                        request = f'GET_PUBLIC_KEY:{sender_name}'
+                        client_socket.send(request.encode())
+                        public_key_pem = client_socket.recv(1024).decode()
+                        if public_key_pem == 'PUBLIC_KEY_NOT_FOUND':
+                            print(f"Public key for {sender_name} not found on the server.")
+                            return None
+                        print(f"Chat initiated with {sender_name}. You can start messaging.")
+                        return sender_name, public_key_pem
                 else:
                     print(f"Rejected chat from {sender_name}.")
                     client_socket.send(f'REJECT_CHAT:{sender_name}'.encode())
@@ -93,10 +100,8 @@ def initiate_chat(client_socket, recipient_name):
             if public_key_pem == 'PUBLIC_KEY_NOT_FOUND':
                 print(f"Public key for {recipient_name} not found on the server.")
                 return None
-            with open(f'{recipient_name}_public_key.pem', 'w') as f:
-                f.write(public_key_pem)
             print(f"Chat initiated with {recipient_name}. You can start messaging.")
-            return recipient_name
+            return recipient_name, public_key_pem
     except Exception as e:
         print(f"Error initiating chat with {recipient_name}: {e}")
         return None

@@ -79,14 +79,14 @@ def derive_shared_secret(private_key, public_key, peer_public_key):
     ).derive(shared_secret)
 
 # Encrypt message using AES-GCM (symmetric key)
-def encrypt_message_symmetric(key, plaintext, associated_data=None):
+def encrypt_message_symmetric(key, plaintext, associated_data):
     aesgcm = AESGCM(key)
     nonce = os.urandom(12)
     ciphertext = aesgcm.encrypt(nonce, plaintext, associated_data)
     return nonce + ciphertext  # Return nonce with the ciphertext for decryption
 
 # Decrypt message using AES-GCM (symmetric key)
-def decrypt_message_symmetric(key, ciphertext, associated_data=None):
+def decrypt_message_symmetric(key, ciphertext, associated_data):
     aesgcm = AESGCM(key)
     nonce = ciphertext[:12]
     actual_ciphertext = ciphertext[12:]

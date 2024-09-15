@@ -1,7 +1,7 @@
 import socket
 import threading
-import server.server_utils as server_utils
-from server.server_handlers import handle_client
+import server_utils as server_utils
+from server_handlers import handle_client
 
 # Shared dictionaries to store active clients and public keys
 clients = {}
@@ -10,7 +10,7 @@ user_public_keys = {}
 def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind(('10.10.1.12', 12345))
-    server_socket.listen(5)
+    server_socket.listen(5) 
 
     # Load user data from file
     user_data = server_utils.load_user_data()
