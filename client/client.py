@@ -25,7 +25,6 @@ def main():
         if action == 'register':
             # Read the public key from the file system
             public_key_path = "keystore/public_key.pem"
-
             public_key = read_public_key(public_key_path)
 
             # Register the user and receive server response
@@ -53,7 +52,7 @@ def main():
 
                     if chat_partner and recipient_public_key:
                         # Perform Diffie-Hellman key exchange to derive a shared secret key
-                        shared_secret_key = diffie_hellman_key_exchange(sock, private_rsa_key, recipient_public_key, True)
+                        shared_secret_key = symmetric_key_exchange(sock, username, chat_partner, private_rsa_key, recipient_public_key, True)
                         
                         while True:
                             # User inputs a message to send
@@ -79,7 +78,7 @@ def main():
 
                     if sender_name and sender_public_key:
                         # Perform Diffie-Hellman key exchange to derive a shared secret key
-                        shared_secret_key = diffie_hellman_key_exchange(sock, private_rsa_key, sender_public_key, False)
+                        shared_secret_key = symmetric_key_exchange(sock, username, sender_name, private_rsa_key, sender_public_key, False)
                         
                         while True:
                             # Listen for incoming messages

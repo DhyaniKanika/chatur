@@ -44,12 +44,12 @@ def decrypt_message_rsa(encrypted_message, private_key):
         )
     ).decode()
 
-# Generate DH key pair
-def generate_dh_keys():
-    parameters = dh.generate_parameters(generator=2, key_size=2048, backend=default_backend())
-    private_key = parameters.generate_private_key()
-    public_key = private_key.public_key()
-    return private_key, public_key
+# # Generate DH key pair
+# def generate_dh_keys():
+#     parameters = dh.generate_parameters(generator=2, key_size=2048, backend=default_backend())
+#     private_key = parameters.generate_private_key()
+#     public_key = private_key.public_key()
+#     return private_key, public_key
 
 # Serialize a public key to send it over the network
 def serialize_public_key(public_key):
@@ -62,20 +62,20 @@ def serialize_public_key(public_key):
 def load_public_key(pem_data):
     return serialization.load_pem_public_key(pem_data, backend=default_backend())
 
-# Perform the DH key exchange and derive a shared key
-def derive_shared_secret(private_key, public_key, peer_public_key):
-    shared_secret = private_key.exchange(peer_public_key)
-    public_keys = sorted([public_key, peer_public_key], key=lambda x: x)
-    concatenated_public_keys = public_keys[0] + public_keys[1]
-    salt = hashlib.sha256(concatenated_public_keys).digest()
-    # Derive a key from the shared secret
-    return HKDF(
-        algorithm=hashes.SHA256(),
-        length=32,
-        salt=salt,
-        info=b'handshake data',
-        backend=default_backend()
-    ).derive(shared_secret)
+# # Perform the DH key exchange and derive a shared key
+# def derive_shared_secret(private_key, public_key, peer_public_key):
+#     shared_secret = private_key.exchange(peer_public_key)
+#     public_keys = sorted([public_key, peer_public_key], key=lambda x: x)
+#     concatenated_public_keys = public_keys[0] + public_keys[1]
+#     salt = hashlib.sha256(concatenated_public_keys).digest()
+#     # Derive a key from the shared secret
+#     return HKDF(
+#         algorithm=hashes.SHA256(),
+#         length=32,
+#         salt=salt,
+#         info=b'handshake data',
+#         backend=default_backend()
+#     ).derive(shared_secret)
 
 # Encrypt message using AES-GCM (symmetric key)
 def encrypt_message_symmetric(key, plaintext, associated_data):
@@ -91,30 +91,30 @@ def decrypt_message_symmetric(key, ciphertext, associated_data):
     actual_ciphertext = ciphertext[12:]
     return aesgcm.decrypt(nonce, actual_ciphertext, associated_data)
 
-# Sign a message using private key
-def sign_message(private_key, message):
-    signature = private_key.sign(
-        message.encode(),
-        padding.PSS(
-            mgf=padding.MGF1(hashes.SHA256()),
-            salt_length=padding.PSS.MAX_LENGTH
-        ),
-        hashes.SHA256()
-    )
-    return signature
+# # Sign a message using private key
+# def sign_message(private_key, message):
+#     signature = private_key.sign(
+#         message.encode(),
+#         padding.PSS(
+#             mgf=padding.MGF1(hashes.SHA256()),
+#             salt_length=padding.PSS.MAX_LENGTH
+#         ),
+#         hashes.SHA256()
+#     )
+#     return signature
 
-# Verify a signature using public key
-def verify_signature(public_key, message, signature):
-    try:
-        public_key.verify(
-            signature,
-            message.encode(),
-            padding.PSS(
-                mgf=padding.MGF1(hashes.SHA256()),
-                salt_length=padding.PSS.MAX_LENGTH
-            ),
-            hashes.SHA256()
-        )
-        return True
-    except Exception as e:
-        return False
+# # Verify a signature using public key
+# def verify_signature(public_key, message, signature):
+#     try:
+#         public_key.verify(
+#             signature,
+#             message.encode(),
+#             padding.PSS(
+#                 mgf=padding.MGF1(hashes.SHA256()),
+#                 salt_length=padding.PSS.MAX_LENGTH
+#             ),
+#             hashes.SHA256()
+#         )
+#         return True
+#     except Exception as e:
+#         return False

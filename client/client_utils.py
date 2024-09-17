@@ -2,6 +2,7 @@ import hashlib
 import ssl
 import subprocess
 from client_keytools import *
+import secrets
 
 TRUSTSTORE_PATH = 'truststore'
 
@@ -88,8 +89,6 @@ def listen_for_incoming_requests(client_socket):
                 else:
                     print(f"Rejected chat from {sender_name}.")
                     client_socket.send(f'REJECT_CHAT:{sender_name}'.encode())
-            else:
-                print(f"Unexpected server message: {server_message}")
     except Exception as e:
         print(f"Error while listening for incoming requests: {e}")
 
@@ -104,7 +103,7 @@ def initiate_chat(client_socket, recipient_name):
         elif server_response == 'USER_BUSY':
             print(f"User {recipient_name} is currently busy.")
             return None
-        elif server_response == 'CHAT_READY':
+        elif server_response == 'CHAT_ACCEPT':
             request = f'GET_PUBLIC_KEY:{recipient_name}'
             client_socket.send(request.encode())
             public_key_pem = client_socket.recv(1024).decode()
@@ -117,27 +116,29 @@ def initiate_chat(client_socket, recipient_name):
         print(f"Error initiating chat with {recipient_name}: {e}")
         return None
 
-# Diffie-Hellman key exchange logic (shared between Alice and Bob)
-def diffie_hellman_key_exchange(sock, private_rsa_key, recipient_rsa_public_key, is_initiator):
-    private_dh_key, public_dh_key = generate_dh_keys()
-    
-    # Step 2: If initiator, send DH public key first
+# Symmetric key exchange logic (shared between Alice and Bob)
+def symmetric_key_exchange(sock,username, chat_partner, private_rsa_key, recipient_rsa_public_key, is_initiator):  
+    # If initiator, send key first
     if is_initiator:
-        sock.sendall(encrypt_message_rsa(serialize_public_key(public_dh_key), recipient_rsa_public_key))
-        other_dh_public_key = receive_encrypted_dh_key(sock, private_rsa_key)
+        symetric_key = secrets.token_bytes(64)
+        request = f'CHAT_READY: {chat_partner}: {encrypt_message_rsa(serialize_public_key(symetric_key), recipient_rsa_public_key)}'
+        sock.send(request.encode())
     else:
-        other_dh_public_key = receive_encrypted_dh_key(sock, private_rsa_key)
-        sock.sendall(encrypt_message_rsa(serialize_public_key(public_dh_key), recipient_rsa_public_key))
+        symetric_key = receive_encrypted_symetric_key(sock,username, private_rsa_key)
     
-    return derive_shared_secret(private_dh_key, public_dh_key, other_dh_public_key)
+    return symetric_key
 
 
-def receive_encrypted_dh_key(sock, private_rsa_key):
-    # Receive the encrypted DH public key from the server
-    encrypted_dh_public_key = sock.recv(1024)
-    # Decrypt the DH public key using the client's own RSA private key
-    decrypted_dh_public_key = decrypt_message_rsa(decrypt_message_rsa(encrypted_dh_public_key, private_rsa_key))
-    return decrypted_dh_public_key
+def receive_encrypted_symetric_key(sock, username, private_rsa_key):
+    # Receive the encrypted symetric key from the server
+    response = sock.recv(1024)
+    # Decrypt the key using the client's own RSA private key
+    if response.startswith('CHAT_READY'):
+            _, reciever_name, message = response.split(':', 2)
+            if reciever_name == username:
+                decrypted_symetric_key = decrypt_message_rsa(decrypt_message_rsa(message, private_rsa_key))
+                return decrypted_symetric_key
+            return None
 
 
 def decrypt_truststore(encrypted_file: str, decrypted_file: str, password: str):
