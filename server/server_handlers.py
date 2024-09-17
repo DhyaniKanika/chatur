@@ -1,170 +1,134 @@
-import hashlib
-import ssl
-import subprocess
-from client_keytools import *
+from server.server_utils import save_user_data, load_user_public_key
 
-TRUSTSTORE_PATH = 'truststore'
-
-# def create_ssl_context():
-#     # Create SSL context for server authentication
-#     context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-    
-#     # Load CA certificates for verifying the server
-#     context.load_verify_locations(cafile=TRUSTSTORE_PATH)
-#     return context
-
-#Since we use a self signed certificate for the demo, we will make our contesxt to trust any certificate that the server sends.
-# THIS IS ONLY FOR TESTING
-def create_ssl_context():
-    # Create s default SSL context for server authentication
-    context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-    
-    # Trust whatever the server sends
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
-    return context
-
-# Function to hash the password using SHA-256
-def hash_password(password):
-    return hashlib.sha256(password.encode()).hexdigest()
-
-# Function to read the public key from the file system
-def read_public_key(file_path):
-    with open(file_path, 'r') as file:
-        return file.read().strip()  # Strip any extra newlines
-
-# Function to register the user by sending the username, hashed password, and public key
-def register_user(sock, username, password, public_key):
-    message = f'REGISTER:{username}:{password}:{public_key}'
-    sock.send(message.encode())
-    response = sock.recv(1024).decode()
-    return response
-
-def login_user(sock, username, password):
-    message = f'LOGIN:{username}:{password}'
-    sock.sendall(message.encode())
-    response = sock.recv(1024).decode()
-    return response
-
-def send_message(client_socket, message, recipient_name):
-    try:
-        client_socket.send(f'MESSAGE:{recipient_name}:{message}'.encode())
-    except Exception as e:
-        print(f"Error sending message to {recipient_name}: {e}")
-
-def receive_message(client_socket, username):
-    try:
-        server_message = client_socket.recv(1024).decode()
-        if server_message.startswith('MESSAGE'):
-            _, reciever_name, message = server_message.split(':', 2)
-            if reciever_name == username:
-                return message 
-        else:
-            print(f"Unexpected message")
-            return None
-    except Exception as e:
-        print(f"Error receiving message: {e}")
-
-def listen_for_incoming_requests(client_socket):
-    try:
+def handle_client(client_socket, clients, user_data, user_public_keys):
+    with client_socket:
+        print(f'Handling connection from {client_socket.getpeername()}')
         while True:
-            server_message = client_socket.recv(1024).decode()
-            if server_message.startswith('CHAT_REQUEST'):
-                _, sender_name = server_message.split(':')
-                print(f"{sender_name} wants to chat with you.")
-                response = input(f"Accept chat from {sender_name}? (yes/no): ").strip().lower()
-                if response == 'yes':
-                    client_socket.send(f'ACCEPT_CHAT:{sender_name}'.encode())
-                    response = client_socket.recv(1024).decode()
-                    if response == 'CHAT_READY':
-                        request = f'GET_PUBLIC_KEY:{sender_name}'
-                        client_socket.send(request.encode())
-                        public_key_pem = client_socket.recv(1024).decode()
-                        if public_key_pem == 'PUBLIC_KEY_NOT_FOUND':
-                            print(f"Public key for {sender_name} not found on the server.")
-                            return None
-                        print(f"Chat initiated with {sender_name}. You can start messaging.")
-                        return sender_name, public_key_pem
-                else:
-                    print(f"Rejected chat from {sender_name}.")
-                    client_socket.send(f'REJECT_CHAT:{sender_name}'.encode())
-            else:
-                print(f"Unexpected server message: {server_message}")
-    except Exception as e:
-        print(f"Error while listening for incoming requests: {e}")
+            try:
+                message = client_socket.recv(1024)
+                if not message:
+                    break
 
-def initiate_chat(client_socket, recipient_name):
-    try:
-        request = f'REQUEST_CHAT:{recipient_name}'
-        client_socket.send(request.encode())
-        server_response = client_socket.recv(1024).decode()
-        if server_response == 'USER_NOT_FOUND':
-            print(f"User {recipient_name} not found.")
-            return None
-        elif server_response == 'USER_BUSY':
-            print(f"User {recipient_name} is currently busy.")
-            return None
-        elif server_response == 'CHAT_READY':
-            request = f'GET_PUBLIC_KEY:{recipient_name}'
-            client_socket.send(request.encode())
-            public_key_pem = client_socket.recv(1024).decode()
-            if public_key_pem == 'PUBLIC_KEY_NOT_FOUND':
-                print(f"Public key for {recipient_name} not found on the server.")
-                return None
-            print(f"Chat initiated with {recipient_name}. You can start messaging.")
-            return recipient_name, public_key_pem
-    except Exception as e:
-        print(f"Error initiating chat with {recipient_name}: {e}")
-        return None
-    # Step 2: If initiator, send key first
+                command, *message_parts = message.decode().split(':')
 
-# Diffie-Hellman key exchange logic (shared between Alice and Bob)
-def diffie_hellman_key_exchange(sock, private_rsa_key, recipient_rsa_public_key, is_initiator):
-    private_dh_key, public_dh_key = generate_dh_keys()
-    
-    # Step 2: If initiator, send DH public key first
-    if is_initiator:
-        sock.sendall(encrypt_message_rsa(serialize_public_key(public_dh_key), recipient_rsa_public_key))
-        other_dh_public_key = receive_encrypted_dh_key(sock, private_rsa_key)
+                if command == 'REGISTER':
+                    handle_registration(client_socket, message_parts, user_data)
+
+                elif command == 'LOGIN':
+                    handle_login(client_socket, message_parts, clients, user_data, user_public_keys)
+
+                elif command == 'GET_USERS':
+                    handle_get_users(client_socket, clients)
+
+                elif command == 'GET_PUBLIC_KEY':
+                    handle_get_public_key(client_socket, message_parts, user_public_keys)
+
+                elif command == 'REQUEST_CHAT':
+                    handle_chat_request(message_parts[0], message_parts[1], client_socket, clients)
+
+                elif command == 'ACCEPT_CHAT':
+                    handle_accept_chat(message_parts[0], message_parts[1], clients)
+
+                elif command == 'REJECT_CHAT':
+                    handle_reject_chat(message_parts[0], message_parts[1], clients)
+
+                elif command == 'MESSAGE':
+                    handle_message(message_parts[0], message_parts[1], message_parts[2], clients)
+                    
+                elif command == 'CHAT_READY':
+                    handle_chat_ready(message_parts[0], message_parts[1], message_parts[2], clients)
+                    
+
+            except Exception as e:
+                print(f"Error handling client: {e}")
+                break
+            finally:
+                remove_client(client_socket, clients)
+
+def handle_registration(client_socket, message_parts, user_data):
+    client_name = message_parts[0]
+    client_password = message_parts[1]
+    client_public_key = message_parts[2]
+
+    if client_name in user_data:
+        client_socket.send(b'USER_EXISTS')
     else:
-        other_dh_public_key = receive_encrypted_dh_key(sock, private_rsa_key)
-        sock.sendall(encrypt_message_rsa(serialize_public_key(public_dh_key), recipient_rsa_public_key))
-    
-    return derive_shared_secret(private_dh_key, public_dh_key, other_dh_public_key)
+        user_data[client_name] = client_password
+        save_user_data(user_data)
 
+        # Save client's public key to a file
+        with open(f'truststore/client_{client_name}_public_key.pem', 'w') as f:
+            f.write(client_public_key)
 
-def receive_encrypted_dh_key(sock, private_rsa_key):
-    # Receive the encrypted DH public key from the server
-    encrypted_dh_public_key = sock.recv(1024)
-    # Decrypt the DH public key using the client's own RSA private key
-    decrypted_dh_public_key = decrypt_message_rsa(decrypt_message_rsa(encrypted_dh_public_key, private_rsa_key))
-    return decrypted_dh_public_key
+        client_socket.send(b'REGISTERED')
 
+def handle_login(client_socket, message_parts, clients, user_data, user_public_keys):
+    client_name = message_parts[0]
+    client_password = message_parts[1]
 
-def decrypt_truststore(encrypted_file: str, decrypted_file: str, password: str):
-    """Decrypt the encrypted truststore file."""
-    try:
-        subprocess.run([
-            'openssl', 'enc', '-d', '-aes-256-cbc',
-            '-in', encrypted_file,
-            '-out', decrypted_file,
-            '-pass', f'pass:{password}'
-        ], check=True)
-        print(f"Decrypted truststore saved to: {decrypted_file}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error during decryption: {e}")
-        raise
+    if client_name in user_data and user_data[client_name] == client_password:
+        clients[client_name] = client_socket
+        user_public_keys[client_name] = load_user_public_key(client_name)
+        client_socket.send(b'LOGIN_SUCCESS')
+    else:
+        client_socket.send(b'LOGIN_FAILED')
 
-def encrypt_truststore(decrypted_file: str, encrypted_file: str, password: str):
-    """Encrypt the truststore file."""
-    try:
-        subprocess.run([
-            'openssl', 'enc', '-aes-256-cbc',
-            '-salt', '-in', decrypted_file,
-            '-out', encrypted_file,
-            '-pass', f'pass:{password}'
-        ], check=True)
-        print(f"Encrypted truststore saved to: {encrypted_file}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error during encryption: {e}")
-        raise
+def handle_get_users(client_socket, clients):
+    user_list = ':'.join(clients.keys())
+    client_socket.send(user_list.encode())
+
+def handle_get_public_key(client_socket, message_parts, user_public_keys):
+    recipient_name = message_parts[0]
+    if recipient_name in user_public_keys:
+        client_socket.send(user_public_keys[recipient_name].encode())
+    else:
+        client_socket.send(b'PUBLIC_KEY_NOT_FOUND')
+
+def handle_chat_request(sender_username, recipient_username, sender_socket, clients):
+    if recipient_username in clients:
+        recipient_socket = clients[recipient_username]
+        recipient_socket.send(f'CHAT_REQUEST:{sender_username}'.encode())
+    else:
+        sender_socket.send(f'USER_NOT_FOUND:{recipient_username}'.encode())
+
+def handle_accept_chat(sender_username, recipient_username, clients):
+    if sender_username in clients:
+        sender_socket = clients[sender_username]
+        sender_socket.send(f'CHAT_ACCEPT:{recipient_username}'.encode())
+        recipient_socket = clients[recipient_username]
+        recipient_socket.send(f'CHAT_ACCEPT:{sender_username}'.encode())
+    else:
+        recipient_socket = clients[recipient_username]
+        recipient_socket.send(f'USER_NOT_FOUND:{sender_username}'.encode())
+
+def handle_reject_chat(sender_username, recipient_username, clients):
+    if sender_username in clients:
+        sender_socket = clients[sender_username]
+        sender_socket.send(f'CHAT_REJECTED:{recipient_username}'.encode())
+
+def handle_message(sender_username, recipient_username, message_body, clients):
+    if recipient_username in clients:
+        recipient_socket = clients[recipient_username]
+        recipient_socket.send(f'MESSAGE:{sender_username}:{recipient_username}:{message_body}'.encode())
+    else:
+        sender_socket = clients[sender_username]
+        sender_socket.send(f'USER_NOT_FOUND:{recipient_username}'.encode())
+        
+def handle_chat_ready(client_socket, message_parts, clients):
+    sender_username = message_parts[0]
+    recipient_username = message_parts[1]
+    client_message = message_parts[2]
+
+    if recipient_username in clients:
+        recipient_socket = clients[recipient_username]
+        recipient_socket.send(f'CHAT_READY:{sender_username}:{recipient_username}:{client_message}'.encode())
+    else:
+        sender_socket = clients[sender_username]
+        sender_socket.send(f'USER_NOT_FOUND:{recipient_username}'.encode())
+
+def remove_client(client_socket, clients):
+    for username, sock in clients.items():
+        if sock == client_socket:
+            del clients[username]
+            break
+    client_socket.close()
