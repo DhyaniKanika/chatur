@@ -55,14 +55,15 @@ def send_message(client_socket, message, recipient_name):
 
 def receive_message(client_socket, username):
     try:
-        server_message = client_socket.recv(1024).decode()
-        if server_message.startswith('MESSAGE'):
-            _, reciever_name, message = server_message.split(':', 2)
-            if reciever_name == username:
-                return message 
-        else:
-            print(f"Unexpected message")
-            return None
+        while True:
+            server_message = client_socket.recv(1024).decode()
+            if server_message.startswith('MESSAGE'):
+                _, reciever_name, message = server_message.split(':', 2)
+                if reciever_name == username:
+                    return message 
+            else:
+                print(f"Unexpected message")
+                return None
     except Exception as e:
         print(f"Error receiving message: {e}")
 
@@ -96,22 +97,27 @@ def initiate_chat(client_socket, recipient_name):
     try:
         request = f'REQUEST_CHAT:{recipient_name}'
         client_socket.send(request.encode())
-        server_response = client_socket.recv(1024).decode()
-        if server_response == 'USER_NOT_FOUND':
-            print(f"User {recipient_name} not found.")
-            return None
-        elif server_response == 'USER_BUSY':
-            print(f"User {recipient_name} is currently busy.")
-            return None
-        elif server_response == 'CHAT_ACCEPT':
-            request = f'GET_PUBLIC_KEY:{recipient_name}'
-            client_socket.send(request.encode())
-            public_key_pem = client_socket.recv(1024).decode()
-            if public_key_pem == 'PUBLIC_KEY_NOT_FOUND':
-                print(f"Public key for {recipient_name} not found on the server.")
+        while True:
+            server_response = client_socket.recv(1024).decode()
+            if server_response == 'USER_NOT_FOUND':
+                print(f"User {recipient_name} not found.")
                 return None
-            print(f"Chat initiated with {recipient_name}. You can start messaging.")
-            return recipient_name, public_key_pem
+            elif server_response == 'USER_BUSY':
+                print(f"User {recipient_name} is currently busy.")
+                return None
+            elif server_response == 'CHAT_ACCEPT':
+                request = f'GET_PUBLIC_KEY:{recipient_name}'
+                while True:
+                    client_socket.send(request.encode())
+                    public_key_pem = client_socket.recv(1024).decode()
+                    if public_key_pem == 'PUBLIC_KEY_NOT_FOUND':
+                        print(f"Public key for {recipient_name} not found on the server.")
+                        return None
+                    elif public_key_pem.startswith('PUBLIC_KEY'):
+                        public_key_pem = public_key_pem.split(':')
+                        public_key_pem = public_key_pem[1]
+                        print(f"Chat initiated with {recipient_name}. You can start messaging.")
+                        return recipient_name, public_key_pem
     except Exception as e:
         print(f"Error initiating chat with {recipient_name}: {e}")
         return None

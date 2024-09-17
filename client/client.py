@@ -38,9 +38,12 @@ def main():
 
                 # Request and display the list of active users
                 sock.send(b'GET_USERS')
-                response = sock.recv(1024)
-                user_list = response.decode().split(':')
-                print("Active users", user_list)
+                while True:
+                    response = sock.recv(1024).decode()
+                    if response.startswith('USERS'):
+                        user_list = response.split(':')
+                        print("Active users", user_list[1:])
+                        break
 
                 # Ask the user if they want to initiate a chat or wait for a request
                 mode = input("Do you want to initiate a chat or wait for a request? (initiate/wait): ").strip().lower()
