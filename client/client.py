@@ -1,16 +1,19 @@
 import socket
 from client_utils import *
+import getpass
+
 def main():
     # Server details
     server_hostname = 'chat.chatur.com'
     server_port = 12345
     context = create_ssl_context()
-    enc_password = input("enter the password for decrypting keys").encode()
+    enc_password = getpass.getpass("enter the password for decrypting keys: ")
+    enc_password = enc_password.encode()
     private_rsa_key = load_private_key_from_file(enc_password)
 
     # Create a socket and connect to the server
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    with context.wrap_socket(client_socket, server_hostname) as sock:
+    with context.wrap_socket(client_socket, server_hostname=server_hostname) as sock:
         sock.connect((server_hostname, server_port))
         print("Connected to server.")
 
@@ -21,7 +24,8 @@ def main():
 
         if action == 'register':
             # Read the public key from the file system
-            public_key_path = "truststore/public_key.pem"
+            public_key_path = "keystore/public_key.pem"
+
             public_key = read_public_key(public_key_path)
 
             # Register the user and receive server response

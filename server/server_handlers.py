@@ -1,4 +1,4 @@
-from server.server_utils import save_user_data, load_user_public_key
+from server_utils import save_user_data, load_user_public_key
 
 def handle_client(client_socket, clients, user_data, user_public_keys):
     with client_socket:
@@ -53,7 +53,7 @@ def handle_registration(client_socket, message_parts, user_data):
         save_user_data(user_data)
 
         # Save client's public key to a file
-        with open(f'truststore/client_{client_name}_public_key.pem', 'w') as f:
+        with open(f'truststore/client_{client_name}_public_key.pem', 'x') as f:
             f.write(client_public_key)
 
         client_socket.send(b'REGISTERED')

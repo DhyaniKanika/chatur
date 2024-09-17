@@ -5,12 +5,23 @@ from client_keytools import *
 
 TRUSTSTORE_PATH = 'truststore'
 
+# def create_ssl_context():
+#     # Create SSL context for server authentication
+#     context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+    
+#     # Load CA certificates for verifying the server
+#     context.load_verify_locations(cafile=TRUSTSTORE_PATH)
+#     return context
+
+#Since we use a self signed certificate for the demo, we will make our contesxt to trust any certificate that the server sends.
+# THIS IS ONLY FOR TESTING
 def create_ssl_context():
-    # Create SSL context for server authentication
+    # Create s default SSL context for server authentication
     context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
     
-    # Load CA certificates for verifying the server
-    context.load_verify_locations(cafile=TRUSTSTORE_PATH)
+    # Trust whatever the server sends
+    context.check_hostname = False
+    context.verify_mode = ssl.CERT_NONE
     return context
 
 # Function to hash the password using SHA-256

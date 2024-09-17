@@ -96,6 +96,13 @@ if ! openssl x509 -req -days 365 -in ~/keystore/server.csr -signkey ~/keystore/s
     exit 1
 fi
 
+#generate the keystore.pem file and encrypt that too...
+echo "Generating keystore.pem..."
+if ! cat ~/keystore/server.crt  ~/keystore/server.key > ~/keystore/keystore.pem; then
+    echo "Failed to generate keystore..pem."
+    exit 1
+fi
+
 # Encrypt the server private key
 echo "Encrypting server private key..."
 encrypt_with_openssl ~/keystore/server.key "$PASSWORD"

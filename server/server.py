@@ -6,10 +6,12 @@ from server_handlers import handle_client
 # Shared dictionaries to store active clients and public keys
 clients = {}
 user_public_keys = {}
+ip = "192.168.11.130"
+port=12345
 
 def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind(('10.10.1.12', 12345))
+    server_socket.bind((ip, port))
     server_socket.listen(5) 
 
     # Load user data from file
@@ -26,7 +28,7 @@ def main():
             client_socket, addr = server.accept()
             print(f'Connection from {addr}')
             # Start a new thread to handle each connected client
-            client_thread = threading.Thread(target=handle_client, args=(client_socket, clients, user_data, user_public_keys))
+            client_thread = threading.Thread(target=handle_client, args=(client_socket, clients, user_data, user_public_keys), daemon=True)
             client_thread.start()
 
 
