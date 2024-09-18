@@ -144,6 +144,12 @@ def receive_encrypted_symetric_key(sock, username, private_rsa_key):
     # Receive the encrypted symetric key from the server
     while True:
         response = sock.recv(1024).decode()
+        
+        # Add padding if necessary
+        missing_padding = len(response) % 4
+        if missing_padding != 0:
+            response += '=' * (4 - missing_padding)
+        
         response = base64.b64decode(response)
         print(response)
         # Decrypt the key using the client's own RSA private key
