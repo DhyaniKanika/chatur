@@ -4,7 +4,7 @@ import getpass
 
 def main():
     # Server details
-    server_hostname = 'chat.chatur.com'
+    server_hostname = 'server.localdomain'
     server_port = 12345
     context = create_ssl_context()
     enc_password = getpass.getpass("enter the password for decrypting keys: ")
@@ -38,11 +38,15 @@ def main():
 
                 # Request and display the list of active users
                 sock.send(b'GET_USERS')
+                # response = sock.recv(1024)
+                # print(response.decode())
+                # user_list = response.decode().split(':')
+                
                 while True:
                     response = sock.recv(1024).decode()
                     if response.startswith('USERS'):
                         user_list = response.split(':')
-                        print("Active users", user_list[1:])
+                        print("Active users", user_list)
                         break
 
                 # Ask the user if they want to initiate a chat or wait for a request
@@ -50,26 +54,29 @@ def main():
 
                 if mode == 'initiate':
                     # User initiates chat by providing the recipient's name
-                    recipient_name = input("Enter the recipient's name: ").strip()
-                    chat_partner, recipient_public_key = initiate_chat(sock, recipient_name)
+                    recipient_name = input("Enter the recipient's name: ")
+                    recipient_name = recipient_name.strip()
+                    chat_partner, recipient_public_key = initiate_chat(sock, username, recipient_name)
 
                     if chat_partner and recipient_public_key:
                         # Perform Diffie-Hellman key exchange to derive a shared secret key
                         shared_secret_key = symmetric_key_exchange(sock, username, chat_partner, private_rsa_key, recipient_public_key, True)
+                        secret = hashlib.sha256(shared_secret_key).hexdigest().encode()
                         
                         while True:
                             # User inputs a message to send
                             outgoing_message = input(f"{username}: ").strip()
                             
                             # Encrypt and send the message
-                            encrypted_message = encrypt_message_symmetric(shared_secret_key, outgoing_message, username)
+                            encrypted_message = encrypt_message_symmetric(shared_secret_key, outgoing_message, secret)
+                            print(encrypted_message)
                             send_message(sock, encrypted_message, chat_partner)
 
                             # Listen for incoming messages
-                            incoming_encrypted_message = receive_message(sock)
+                            incoming_encrypted_message = receive_message(sock, username)
                             if incoming_encrypted_message:
                                 # Decrypt the received message
-                                decrypted_message = decrypt_message_symmetric(shared_secret_key, incoming_encrypted_message, recipient_name)
+                                decrypted_message = decrypt_message_symmetric(shared_secret_key, incoming_encrypted_message, secret)
                                 print(f"{recipient_name}: {decrypted_message}")
                             else:
                                 break
@@ -77,18 +84,20 @@ def main():
                 elif mode == 'wait':
                     # User waits for an incoming chat request
                     print("Waiting for an incoming chat request...")
-                    sender_name, sender_public_key = listen_for_incoming_requests(sock)
+                    sender_name, sender_public_key = listen_for_incoming_requests(sock, username)
 
                     if sender_name and sender_public_key:
                         # Perform Diffie-Hellman key exchange to derive a shared secret key
                         shared_secret_key = symmetric_key_exchange(sock, username, sender_name, private_rsa_key, sender_public_key, False)
+                        secret = hashlib.sha256(shared_secret_key).hexdigest().encode()
+
                         
                         while True:
                             # Listen for incoming messages
-                            incoming_encrypted_message = receive_message(sock)
+                            incoming_encrypted_message = receive_message(sock, username)
                             if incoming_encrypted_message:
                                 # Decrypt the received message
-                                decrypted_message = decrypt_message_symmetric(shared_secret_key, incoming_encrypted_message, sender_name)
+                                decrypted_message = decrypt_message_symmetric(shared_secret_key, incoming_encrypted_message, secret)
                                 print(f"{sender_name}: {decrypted_message}")
                             else:
                                 break
@@ -97,7 +106,7 @@ def main():
                             outgoing_message = input(f"{username}: ").strip()
                             
                             # Encrypt and send the message
-                            encrypted_message = encrypt_message_symmetric(shared_secret_key, outgoing_message, username)
+                            encrypted_message = encrypt_message_symmetric(shared_secret_key, outgoing_message, secret)
                             send_message(sock, encrypted_message, sender_name)
                 else:
                     print("Invalid mode selected.")

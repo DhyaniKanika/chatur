@@ -42,7 +42,7 @@ def decrypt_message_rsa(encrypted_message, private_key):
             algorithm=hashes.SHA256(),
             label=None
         )
-    ).decode()
+    )#.decode()
 
 # # Generate DH key pair
 # def generate_dh_keys():
@@ -81,7 +81,7 @@ def load_public_key(pem_data):
 def encrypt_message_symmetric(key, plaintext, associated_data):
     aesgcm = AESGCM(key)
     nonce = os.urandom(12)
-    ciphertext = aesgcm.encrypt(nonce, plaintext, associated_data)
+    ciphertext = aesgcm.encrypt(nonce, plaintext.encode(), associated_data)
     return nonce + ciphertext  # Return nonce with the ciphertext for decryption
 
 # Decrypt message using AES-GCM (symmetric key)
@@ -89,7 +89,7 @@ def decrypt_message_symmetric(key, ciphertext, associated_data):
     aesgcm = AESGCM(key)
     nonce = ciphertext[:12]
     actual_ciphertext = ciphertext[12:]
-    return aesgcm.decrypt(nonce, actual_ciphertext, associated_data)
+    return aesgcm.decrypt(nonce, actual_ciphertext, associated_data).decode()
 
 # # Sign a message using private key
 # def sign_message(private_key, message):
