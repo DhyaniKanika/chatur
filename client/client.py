@@ -4,6 +4,7 @@ import getpass
 
 def main():
     # Server details
+    print("Test_git")
     server_hostname = 'server.localdomain'
     server_port = 12345
     context = create_ssl_context()
