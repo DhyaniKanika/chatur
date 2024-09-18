@@ -128,10 +128,10 @@ def symmetric_key_exchange(sock,username, chat_partner, private_rsa_key, recipie
     if is_initiator:
         symetric_key = (secrets.token_bytes(32))
         recipient_rsa_public_key = bytearray(
-                    recipient_rsa_public_key.split(':')[1].encode()
-                )
+            recipient_rsa_public_key.split(':')[1].encode()
+        )
         request = f'CHAT_READY:{chat_partner}:{encrypt_message_rsa(symetric_key, load_public_key(recipient_rsa_public_key))}'
-        sock.send(request)
+        sock.send(request.encode())
     else:
         symetric_key = receive_encrypted_symetric_key(sock,username, private_rsa_key)
     
