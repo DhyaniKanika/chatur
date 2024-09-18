@@ -19,6 +19,7 @@ def save_user_data(user_data):
 def load_user_public_key(client_name):
     try:
         with open(f'truststore/client_{client_name}_public_key.pem', 'r') as f:
+            # print(f.read())
             return f.read()
     except FileNotFoundError:
         print(f"Public key for {client_name} not found!")

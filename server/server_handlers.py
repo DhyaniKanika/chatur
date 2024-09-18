@@ -1,12 +1,16 @@
-from server.server_utils import save_user_data, load_user_public_key
+from server_utils import save_user_data, load_user_public_key
+import traceback
 
 def handle_client(client_socket, clients, user_data, user_public_keys):
     with client_socket:
         print(f'Handling connection from {client_socket.getpeername()}')
         while True:
+            print(client_socket)
             try:
                 message = client_socket.recv(1024)
+                print(message)
                 if not message:
+                    print("No message")
                     break
 
                 command, *message_parts = message.decode().split(':')
@@ -33,17 +37,21 @@ def handle_client(client_socket, clients, user_data, user_public_keys):
                     handle_reject_chat(message_parts[0], message_parts[1], clients)
 
                 elif command == 'MESSAGE':
-                    handle_message(message_parts[0], message_parts[1], message_parts[2], clients)
+                    handle_message(client_socket, message_parts[0], message_parts[1], clients)
                     
                 elif command == 'CHAT_READY':
-                    handle_chat_ready(message_parts[0], message_parts[1], message_parts[2], clients)
+                    tmp_message_parts = [message_parts[0], ':'.join(message_parts[1:])]
+                    print(tmp_message_parts) 
+                    # handle_chat_ready([message_parts[0], message_parts[1]], clients)
+                    handle_chat_ready(tmp_message_parts[0], tmp_message_parts[1], clients)
                     
 
             except Exception as e:
                 print(f"Error handling client: {e}")
+                print(traceback.format_exc())
                 break
-            finally:
-                remove_client(client_socket, clients)
+            # finally:
+            #     remove_client(client_socket, clients)
 
 def handle_registration(client_socket, message_parts, user_data):
     client_name = message_parts[0]
@@ -69,18 +77,22 @@ def handle_login(client_socket, message_parts, clients, user_data, user_public_k
     if client_name in user_data and user_data[client_name] == client_password:
         clients[client_name] = client_socket
         user_public_keys[client_name] = load_user_public_key(client_name)
-        client_socket.send(b'LOGIN_SUCCESS')
+        if user_public_keys[client_name] is None:
+            client_socket.send(b'PUBLIC_KEY_MISSING')
+        else:
+            client_socket.send(b'LOGIN_SUCCESS')
     else:
         client_socket.send(b'LOGIN_FAILED')
 
 def handle_get_users(client_socket, clients):
-    user_list = 'USERS:'.join(clients.keys())
+    user_list = f"USERS:{':'.join(clients.keys())}"
     client_socket.send(user_list.encode())
 
 def handle_get_public_key(client_socket, message_parts, user_public_keys):
     recipient_name = message_parts[0]
     if recipient_name in user_public_keys:
-        client_socket.send(f'PUBLIC_KEY:{user_public_keys[recipient_name]}'.encode())
+        # client_socket.send(user_public_keys[recipient_name].encode())
+        client_socket.send(str(f"PUBLIC_KEY:{user_public_keys[recipient_name]}").encode())
     else:
         client_socket.send(b'PUBLIC_KEY_NOT_FOUND')
 
@@ -106,25 +118,19 @@ def handle_reject_chat(sender_username, recipient_username, clients):
         sender_socket = clients[sender_username]
         sender_socket.send(f'CHAT_REJECTED:{recipient_username}'.encode())
 
-def handle_message(sender_username, recipient_username, message_body, clients):
+def handle_message(sender_socket, recipient_username, message_body, clients):
     if recipient_username in clients:
         recipient_socket = clients[recipient_username]
-        recipient_socket.send(f'MESSAGE:{sender_username}:{recipient_username}:{message_body}'.encode())
+        recipient_socket.send(f'MESSAGE:{recipient_username}:{message_body}'.encode())
     else:
-        sender_socket = clients[sender_username]
         sender_socket.send(f'USER_NOT_FOUND:{recipient_username}'.encode())
         
-def handle_chat_ready( message_parts, clients):
-    sender_username = message_parts[0]
-    recipient_username = message_parts[1]
-    client_message = message_parts[2]
+# def handle_chat_ready(client_socket, message_parts, clients):
+def handle_chat_ready(recipient_username, data, clients):
 
     if recipient_username in clients:
         recipient_socket = clients[recipient_username]
-        recipient_socket.send(f'CHAT_READY:{sender_username}:{recipient_username}:{client_message}'.encode())
-    else:
-        sender_socket = clients[sender_username]
-        sender_socket.send(f'USER_NOT_FOUND:{recipient_username}'.encode())
+        recipient_socket.send(f'CHAT_READY:{recipient_username}:{data}'.encode())
 
 def remove_client(client_socket, clients):
     for username, sock in clients.items():

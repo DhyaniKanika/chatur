@@ -28,7 +28,7 @@ def main():
             client_socket, addr = server.accept()
             print(f'Connection from {addr}')
             # Start a new thread to handle each connected client
-            client_thread = threading.Thread(target=handle_client, args=(client_socket, clients, user_data, user_public_keys), daemon=True)
+            client_thread = threading.Thread(target=handle_client, args=(client_socket, clients, user_data, user_public_keys))
             client_thread.start()
 
 
