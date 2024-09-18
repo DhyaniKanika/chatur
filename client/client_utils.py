@@ -1,7 +1,6 @@
 import hashlib
 import ssl
 import subprocess
-import base64
 from client_keytools import *
 import secrets
 
@@ -132,7 +131,6 @@ def symmetric_key_exchange(sock,username, chat_partner, private_rsa_key, recipie
                     recipient_rsa_public_key.split(':')[1].encode()
                 )
         request = f'CHAT_READY:{chat_partner}:{encrypt_message_rsa(symetric_key, load_public_key(recipient_rsa_public_key))}'
-        request =  base64.b64encode(request.encode())
         sock.send(request)
     else:
         symetric_key = receive_encrypted_symetric_key(sock,username, private_rsa_key)
@@ -145,13 +143,6 @@ def receive_encrypted_symetric_key(sock, username, private_rsa_key):
     while True:
         response = sock.recv(1024).decode()
         
-        # Add padding if necessary
-        missing_padding = len(response) % 4
-        if missing_padding != 0:
-            response += '=' * (4 - missing_padding)
-        
-        response = base64.b64decode(response)
-        print(response)
         # Decrypt the key using the client's own RSA private key
         if response.startswith('CHAT_READY'):
             _, reciever_name, message = response.split(':', 2)

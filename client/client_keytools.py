@@ -9,6 +9,7 @@ from cryptography.hazmat.primitives.serialization import load_pem_private_key
 
 import hashlib
 import os
+import base64
 
 # Load RSA keys from files
 def load_private_key_from_file(password: bytes):
@@ -81,7 +82,8 @@ def load_public_key(pem_data):
 def encrypt_message_symmetric(key, plaintext, associated_data):
     aesgcm = AESGCM(key)
     nonce = os.urandom(12)
-    ciphertext = aesgcm.encrypt(nonce, plaintext.encode(), associated_data)
+    message = base64.b64encode(plaintext.encode())
+    ciphertext = aesgcm.encrypt(nonce, message, associated_data)
     return nonce + ciphertext  # Return nonce with the ciphertext for decryption
 
 # Decrypt message using AES-GCM (symmetric key)
@@ -89,7 +91,8 @@ def decrypt_message_symmetric(key, ciphertext, associated_data):
     aesgcm = AESGCM(key)
     nonce = ciphertext[:12]
     actual_ciphertext = ciphertext[12:]
-    return aesgcm.decrypt(nonce, actual_ciphertext, associated_data).decode()
+    message = base64.b64decode(actual_ciphertext)
+    return aesgcm.decrypt(nonce, message, associated_data).decode()
 
 # # Sign a message using private key
 # def sign_message(private_key, message):
