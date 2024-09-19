@@ -59,12 +59,8 @@ def main():
                     chat_partner, recipient_public_key = initiate_chat(sock, username, recipient_name)
 
                     if chat_partner and recipient_public_key:
-                        if recipient_public_key is None:
-                            print("Error: Failed to retrieve recipient's public key. Exiting.")
-                            return
-
                         # Perform Diffie-Hellman key exchange to derive a shared secret key
-                        shared_secret_key = symmetric_key_exchange(sock, username, chat_partner, private_rsa_key, recipient_public_key, True)
+                        shared_secret_key = symmetric_key_exchange(sock, username, chat_partner, private_rsa_key, recipient_public_key, mode == 'initiate')
                         
                         print(f"sock: {sock}")
                         print(f"username: {username}")
@@ -77,7 +73,11 @@ def main():
                             print("Error: Failed to establish a shared secret key. Exiting.")
                             return
 
-                        secret = hashlib.sha256(shared_secret_key).digest()
+                        try:
+                            secret = hashlib.sha256(shared_secret_key).digest()
+                        except Exception as e:
+                            print(f"Error creating secret: {e}")
+                            return
                         
                         while True:
                             # User inputs a message to send

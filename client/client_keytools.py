@@ -75,6 +75,7 @@ def decrypt_message_rsa(encrypted_message, private_key):
         return decrypted
     except ValueError as e:
         print(f"RSA Decryption error (ValueError): {e}")
+        print(f"Encrypted message: {encrypted_message[:50]}...")  # Print first 50 chars
     except Exception as e:
         print(f"RSA Decryption error: {type(e).__name__}: {e}")
     return None

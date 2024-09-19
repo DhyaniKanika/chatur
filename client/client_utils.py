@@ -189,6 +189,7 @@ def symmetric_key_exchange(sock, username, chat_partner, private_rsa_key, recipi
         print(f"Debug: Sent CHAT_READY request")
         return symmetric_key
     else:
+        print("Debug: Waiting to receive encrypted symmetric key")
         return receive_encrypted_symetric_key(sock, username, private_rsa_key)
 # def symmetric_key_exchange(sock,username, chat_partner, private_rsa_key, recipient_rsa_public_key, is_initiator):
 #     # If initiator, send key first
@@ -215,8 +216,8 @@ def receive_encrypted_symetric_key(sock, username, private_rsa_key):
         if response.startswith('CHAT_READY'):
             _, receiver_name, encrypted_key = response.split(':', 2)
             print(f"Receiver name: {receiver_name}, Encrypted key length: {len(encrypted_key)}")
-            if receiver_name == username:
-                decrypted_symmetric_key = decrypt_message_rsa(encrypted_key.encode(), private_rsa_key)
+            if receiver_name.strip() == username.strip():
+                decrypted_symmetric_key = decrypt_message_rsa(encrypted_key, private_rsa_key)
                 if decrypted_symmetric_key:
                     return decrypted_symmetric_key
                 else:
