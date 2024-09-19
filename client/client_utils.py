@@ -4,6 +4,7 @@ import subprocess
 from client_keytools import *
 import secrets
 import base64
+import traceback
 
 TRUSTSTORE_PATH = 'truststore'
 
@@ -48,19 +49,19 @@ def login_user(sock, username, password):
     response = sock.recv(1024).decode()
     return response
 
-def send_message(client_socket, message, recipient_name):
+def send_message(client_socket, message, recipient_name, secret):
     try:
-        encoded_message = base64.urlsafe_b64encode(message.encode()).decode()
-        client_socket.send(f'MESSAGE:{recipient_name}:{encoded_message}'.encode())
+        client_socket.send(f'MESSAGE:{recipient_name}:{message}'.encode())
     except Exception as e:
         print(f"Error sending message to {recipient_name}: {e}")
+        traceback.print_exc()
 # def send_message(client_socket, message, recipient_name):
 #     try:
 #         client_socket.send(f'MESSAGE:{recipient_name}:{message}'.encode())
 #     except Exception as e:
 #         print(f"Error sending message to {recipient_name}: {e}")
 
-def receive_message(client_socket, username):
+def receive_message(client_socket, username, secret):
     try:
         while True:
             server_message = client_socket.recv(1024).decode()
@@ -69,8 +70,9 @@ def receive_message(client_socket, username):
                 _, receiver_name, encoded_message = server_message.split(':', 2)
                 print(f"Received message for: {receiver_name}")
                 if receiver_name.strip() == username.strip():
-                    print(f"Encoded message: {encoded_message}")
-                    return encoded_message
+                    print(f"Encrypted message: {encoded_message}")
+                    decrypted_message = decrypt_message_symmetric(secret, encoded_message)
+                    return decrypted_message
             else:
                 print(f"Unexpected message format: {server_message}")
                 return None
@@ -142,7 +144,7 @@ def initiate_chat(client_socket, username, recipient_name):
                     return None
                 elif public_key_pem.startswith('PUBLIC_KEY:'):
                     print(f"Chat initiated with {recipient_name}. You can start messaging.")
-                    return recipient_name, public_key_pem.split(':', 1)[1]  # Remove the 'PUBLIC_KEY:' prefix
+                    return recipient_name, public_key_pem  # Return the full public key PEM
     except Exception as e:
         print(f"Error initiating chat with {recipient_name}: {e}")
         return None
@@ -187,11 +189,15 @@ def symmetric_key_exchange(sock, username, chat_partner, private_rsa_key, recipi
         request = f'CHAT_READY:{chat_partner}:{encrypted_key.decode()}'
         sock.send(request.encode())
         print(f"Debug: Sent CHAT_READY request")
+        print(f"Debug: Encrypted key length: {len(encrypted_key)}")
         return symmetric_key
     else:
         print("Debug: Waiting to receive encrypted symmetric key")
         symmetric_key = receive_encrypted_symetric_key(sock, username, private_rsa_key)
-        print(f"Debug: Received symmetric_key: {symmetric_key.hex() if symmetric_key else None}")
+        if symmetric_key:
+            print(f"Debug: Received symmetric_key: {symmetric_key.hex()}")
+        else:
+            print("Debug: Failed to receive symmetric key")
         return symmetric_key
 # def symmetric_key_exchange(sock,username, chat_partner, private_rsa_key, recipient_rsa_public_key, is_initiator):
 #     # If initiator, send key first
@@ -214,7 +220,7 @@ def symmetric_key_exchange(sock, username, chat_partner, private_rsa_key, recipi
 def receive_encrypted_symetric_key(sock, username, private_rsa_key):
     while True:
         response = sock.recv(1024).decode()
-        print(f"Received response: {response}")
+        print(f"Received response: {response[:50]}...")  # Print first 50 chars
         if response.startswith('CHAT_READY'):
             _, receiver_name, encrypted_key = response.split(':', 2)
             print(f"Receiver name: {receiver_name}, Encrypted key length: {len(encrypted_key)}")
@@ -223,7 +229,7 @@ def receive_encrypted_symetric_key(sock, username, private_rsa_key):
                     decrypted_symmetric_key = decrypt_message_rsa(encrypted_key, private_rsa_key)
                     if decrypted_symmetric_key:
                         print(f"Successfully decrypted symmetric key, length: {len(decrypted_symmetric_key)}")
-                        print(f"Decrypted symmetric key: {decrypted_symmetric_key.hex()}")
+                        print(f"Decrypted symmetric key (hex): {decrypted_symmetric_key.hex()}")
                         return decrypted_symmetric_key
                     else:
                         print("Failed to decrypt the symmetric key. Requesting a new one.")
@@ -233,7 +239,7 @@ def receive_encrypted_symetric_key(sock, username, private_rsa_key):
                     traceback.print_exc()
                     sock.send(b'KEY_DECRYPTION_FAILED')
         else:
-            print(f"Unexpected response: {response}")
+            print(f"Unexpected response: {response[:50]}...")  # Print first 50 chars
     return None
 
 # def receive_encrypted_symetric_key(sock, username, private_rsa_key):
