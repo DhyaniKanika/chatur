@@ -190,7 +190,9 @@ def symmetric_key_exchange(sock, username, chat_partner, private_rsa_key, recipi
         return symmetric_key
     else:
         print("Debug: Waiting to receive encrypted symmetric key")
-        return receive_encrypted_symetric_key(sock, username, private_rsa_key)
+        symmetric_key = receive_encrypted_symetric_key(sock, username, private_rsa_key)
+        print(f"Debug: Received symmetric_key: {symmetric_key.hex() if symmetric_key else None}")
+        return symmetric_key
 # def symmetric_key_exchange(sock,username, chat_partner, private_rsa_key, recipient_rsa_public_key, is_initiator):
 #     # If initiator, send key first
 #     if is_initiator:
@@ -217,15 +219,23 @@ def receive_encrypted_symetric_key(sock, username, private_rsa_key):
             _, receiver_name, encrypted_key = response.split(':', 2)
             print(f"Receiver name: {receiver_name}, Encrypted key length: {len(encrypted_key)}")
             if receiver_name.strip() == username.strip():
-                decrypted_symmetric_key = decrypt_message_rsa(encrypted_key, private_rsa_key)
-                if decrypted_symmetric_key:
-                    return decrypted_symmetric_key
-                else:
-                    print("Failed to decrypt the symmetric key. Requesting a new one.")
+                try:
+                    decrypted_symmetric_key = decrypt_message_rsa(encrypted_key, private_rsa_key)
+                    if decrypted_symmetric_key:
+                        print(f"Successfully decrypted symmetric key, length: {len(decrypted_symmetric_key)}")
+                        print(f"Decrypted symmetric key: {decrypted_symmetric_key.hex()}")
+                        return decrypted_symmetric_key
+                    else:
+                        print("Failed to decrypt the symmetric key. Requesting a new one.")
+                        sock.send(b'KEY_DECRYPTION_FAILED')
+                except Exception as e:
+                    print(f"Error during symmetric key decryption: {e}")
+                    traceback.print_exc()
                     sock.send(b'KEY_DECRYPTION_FAILED')
         else:
             print(f"Unexpected response: {response}")
     return None
+
 # def receive_encrypted_symetric_key(sock, username, private_rsa_key):
 #     # Receive the encrypted symetric key from the server
 #     while True:

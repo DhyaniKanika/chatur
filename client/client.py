@@ -74,7 +74,9 @@ def main():
                             return
 
                         try:
+                            # The shared_secret_key is already in bytes, so we don't need to encode it
                             secret = hashlib.sha256(shared_secret_key).digest()
+                            print(f"Secret created successfully. Length: {len(secret)}")
                         except Exception as e:
                             print(f"Error creating secret: {e}")
                             return
