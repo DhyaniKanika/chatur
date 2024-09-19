@@ -3,6 +3,7 @@ import ssl
 import subprocess
 from client_keytools import *
 import secrets
+import base64
 
 TRUSTSTORE_PATH = 'truststore'
 
@@ -49,23 +50,46 @@ def login_user(sock, username, password):
 
 def send_message(client_socket, message, recipient_name):
     try:
-        client_socket.send(f'MESSAGE:{recipient_name}:{message}'.encode())
+        encoded_message = base64.urlsafe_b64encode(message.encode()).decode()
+        client_socket.send(f'MESSAGE:{recipient_name}:{encoded_message}'.encode())
     except Exception as e:
         print(f"Error sending message to {recipient_name}: {e}")
+# def send_message(client_socket, message, recipient_name):
+#     try:
+#         client_socket.send(f'MESSAGE:{recipient_name}:{message}'.encode())
+#     except Exception as e:
+#         print(f"Error sending message to {recipient_name}: {e}")
 
 def receive_message(client_socket, username):
     try:
         while True:
             server_message = client_socket.recv(1024).decode()
+            print(f"Received raw message: {server_message}")
             if server_message.startswith('MESSAGE'):
-                _, reciever_name, message = server_message.split(':', 2)
-                if reciever_name.strip() == username.strip():
-                    return message 
+                _, receiver_name, encoded_message = server_message.split(':', 2)
+                print(f"Received message for: {receiver_name}")
+                if receiver_name.strip() == username.strip():
+                    print(f"Encoded message: {encoded_message}")
+                    return encoded_message
             else:
-                print(f"Unexpected message")
+                print(f"Unexpected message format: {server_message}")
                 return None
     except Exception as e:
-        print(f"Error receiving message: {e}")
+        print(f"Error receiving message: {type(e).__name__}: {e}")
+        return None
+# def receive_message(client_socket, username):
+#     try:
+#         while True:
+#             server_message = client_socket.recv(1024).decode()
+#             if server_message.startswith('MESSAGE'):
+#                 _, reciever_name, message = server_message.split(':', 2)
+#                 if reciever_name.strip() == username.strip():
+#                     return message 
+#             else:
+#                 print(f"Unexpected message")
+#                 return None
+#     except Exception as e:
+#         print(f"Error receiving message: {e}")
 
 def listen_for_incoming_requests(client_socket, username):
     try:
@@ -83,6 +107,7 @@ def listen_for_incoming_requests(client_socket, username):
                         client_socket.send(request.encode())
                         while True:
                             public_key_pem = client_socket.recv(1024).decode()
+                            print(f"public_key_pem: {public_key_pem}")
                             if public_key_pem.startswith('PUBLIC_KEY_NOT_FOUND'):
                                 print(f"Public key for {sender_name} not found on the server.")
                                 return None
@@ -115,45 +140,107 @@ def initiate_chat(client_socket, username, recipient_name):
                 if public_key_pem.startswith('PUBLIC_KEY_NOT_FOUND'):
                     print(f"Public key for {recipient_name} not found on the server.")
                     return None
-                elif public_key_pem.startswith('PUBLIC_KEY'):
+                elif public_key_pem.startswith('PUBLIC_KEY:'):
                     print(f"Chat initiated with {recipient_name}. You can start messaging.")
-                    return recipient_name, public_key_pem
+                    return recipient_name, public_key_pem.split(':', 1)[1]  # Remove the 'PUBLIC_KEY:' prefix
     except Exception as e:
         print(f"Error initiating chat with {recipient_name}: {e}")
         return None
+# def initiate_chat(client_socket, username, recipient_name):
+#     try:
+#         request = f'REQUEST_CHAT:{username}:{recipient_name}'
+#         client_socket.send(request.encode())
+#         server_response = client_socket.recv(1024).decode()
+#         print(server_response)
+#         if server_response.startswith('USER_NOT_FOUND'):
+#             print(f"User {recipient_name} not found.")
+#             return None
+#         elif server_response.startswith('USER_BUSY'):
+#             print(f"User {recipient_name} is currently busy.")
+#             return None
+#         elif server_response.startswith('CHAT_ACCEPT'):
+#             request = f'GET_PUBLIC_KEY:{recipient_name}'
+#             client_socket.send(request.encode())
+#             while True:
+#                 public_key_pem = client_socket.recv(1024).decode()
+#                 if public_key_pem.startswith('PUBLIC_KEY_NOT_FOUND'):
+#                     print(f"Public key for {recipient_name} not found on the server.")
+#                     return None
+#                 elif public_key_pem.startswith('PUBLIC_KEY'):
+#                     print(f"Chat initiated with {recipient_name}. You can start messaging.")
+#                     return recipient_name, public_key_pem
+#     except Exception as e:
+#         print(f"Error initiating chat with {recipient_name}: {e}")
+#         return None
 
 # Symmetric key exchange logic (shared between Alice and Bob)
-def symmetric_key_exchange(sock,username, chat_partner, private_rsa_key, recipient_rsa_public_key, is_initiator):  
-    # If initiator, send key first
+def symmetric_key_exchange(sock, username, chat_partner, private_rsa_key, recipient_rsa_public_key, is_initiator):
+    print(f"Debug: Entering symmetric_key_exchange")
+    print(f"Debug: is_initiator = {is_initiator}")
     if is_initiator:
-        symetric_key = (secrets.token_bytes(32))
-        recipient_rsa_public_key = bytearray(
-            recipient_rsa_public_key.split(':')[1].encode()
-        )
-        request = f'CHAT_READY:{chat_partner}:{encrypt_message_rsa(symetric_key, load_public_key(recipient_rsa_public_key))}'
+        symmetric_key = secrets.token_bytes(32)
+        print(f"Debug: Generated symmetric_key: {symmetric_key.hex()}")
+        encrypted_key = encrypt_message_rsa(symmetric_key, recipient_rsa_public_key)
+        if encrypted_key is None:
+            print("Debug: Failed to encrypt symmetric key")
+            return None
+        request = f'CHAT_READY:{chat_partner}:{encrypted_key.decode()}'
         sock.send(request.encode())
+        print(f"Debug: Sent CHAT_READY request")
+        return symmetric_key
     else:
-        symetric_key = receive_encrypted_symetric_key(sock,username, private_rsa_key)
+        return receive_encrypted_symetric_key(sock, username, private_rsa_key)
+# def symmetric_key_exchange(sock,username, chat_partner, private_rsa_key, recipient_rsa_public_key, is_initiator):
+#     # If initiator, send key first
+#     if is_initiator:
+#         symetric_key = (secrets.token_bytes(32))
+#         recipient_rsa_public_key = bytearray(
+#             recipient_rsa_public_key.split(':')[1].encode()
+#         )
+#         loaded_recipient_rsa_public_key = load_public_key(recipient_rsa_public_key)
+#         request = f'CHAT_READY:{chat_partner}:{encrypt_message_rsa(symetric_key, loaded_recipient_rsa_public_key)}'
+#         sock.send(request.encode())
+#         print(f"recipient_rsa_public_key {(recipient_rsa_public_key)}")
+#         print(f"Length of recipient_rsa_public_key {len(recipient_rsa_public_key)}")
+#         # sock.send(base64.b64encode(request.encode()))
+#     else:
+#         symetric_key = receive_encrypted_symetric_key(sock,username, private_rsa_key)
     
-    return symetric_key
-
+#     return symetric_key
 
 def receive_encrypted_symetric_key(sock, username, private_rsa_key):
-    # Receive the encrypted symetric key from the server
     while True:
         response = sock.recv(1024).decode()
-        
-        # Decrypt the key using the client's own RSA private key
+        print(f"Received response: {response}")
         if response.startswith('CHAT_READY'):
-            _, reciever_name, message = response.split(':', 2)
-            print(message)
-            if reciever_name == username:
-                # decrypted_symetric_key = decrypt_message_rsa(decrypt_message_rsa(message, private_rsa_key))
-                decrypted_symetric_key = decrypt_message_rsa(message, private_rsa_key)
-                print(decrypted_symetric_key)
-                print(decrypted_symetric_key.decode())
-                return decrypted_symetric_key.decode()
-            return None
+            _, receiver_name, encrypted_key = response.split(':', 2)
+            print(f"Receiver name: {receiver_name}, Encrypted key length: {len(encrypted_key)}")
+            if receiver_name == username:
+                decrypted_symmetric_key = decrypt_message_rsa(encrypted_key.encode(), private_rsa_key)
+                if decrypted_symmetric_key:
+                    return decrypted_symmetric_key
+                else:
+                    print("Failed to decrypt the symmetric key. Requesting a new one.")
+                    sock.send(b'KEY_DECRYPTION_FAILED')
+        else:
+            print(f"Unexpected response: {response}")
+    return None
+# def receive_encrypted_symetric_key(sock, username, private_rsa_key):
+#     # Receive the encrypted symetric key from the server
+#     while True:
+#         response = sock.recv(1024).decode()
+        
+#         # Decrypt the key using the client's own RSA private key
+#         if response.startswith('CHAT_READY'):
+#             _, reciever_name, message = response.split(':', 2)
+#             # print(message)
+#             if reciever_name == username:
+#                 decrypted_symetric_key = decrypt_message_rsa(decrypt_message_rsa(message, private_rsa_key))
+#                 # decrypted_symetric_key = decrypt_message_rsa(message, private_rsa_key)
+#                 print(decrypted_symetric_key)
+#                 # print(decrypted_symetric_key.decode())
+#                 # return decrypted_symetric_key.decode()
+#             return None
 
 
 def decrypt_truststore(encrypted_file: str, decrypted_file: str, password: str):

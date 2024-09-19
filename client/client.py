@@ -59,9 +59,25 @@ def main():
                     chat_partner, recipient_public_key = initiate_chat(sock, username, recipient_name)
 
                     if chat_partner and recipient_public_key:
+                        if recipient_public_key is None:
+                            print("Error: Failed to retrieve recipient's public key. Exiting.")
+                            return
+
                         # Perform Diffie-Hellman key exchange to derive a shared secret key
                         shared_secret_key = symmetric_key_exchange(sock, username, chat_partner, private_rsa_key, recipient_public_key, True)
-                        secret = hashlib.sha256(shared_secret_key).hexdigest().encode()
+                        
+                        print(f"sock: {sock}")
+                        print(f"username: {username}")
+                        print(f"chat_partner: {chat_partner}")
+                        print(f"private_rsa_key: {private_rsa_key}")
+                        print(f"recipient_public_key: {recipient_public_key}")
+                        print(f"Value of shared_secret_key: {shared_secret_key}")
+
+                        if shared_secret_key is None:
+                            print("Error: Failed to establish a shared secret key. Exiting.")
+                            return
+
+                        secret = hashlib.sha256(shared_secret_key).digest()
                         
                         while True:
                             # User inputs a message to send
@@ -85,29 +101,41 @@ def main():
                     # User waits for an incoming chat request
                     print("Waiting for an incoming chat request...")
                     sender_name, sender_public_key = listen_for_incoming_requests(sock, username)
+                    
+                    # if sender_name and sender_public_key:
+                    #     shared_secret_key = symmetric_key_exchange(sock, username, sender_name, private_rsa_key, sender_public_key, False)
+                    #     secret = hashlib.sha256(shared_secret_key).hexdigest().encode()
+
+                    #     print(f"secret: {secret}")
+                        
+                    #     while True:
+                    #         # Listen for incoming messages
+                    #         incoming_encrypted_message = receive_message(sock, username)
+                    #         if incoming_encrypted_message:
+                    #             # Decrypt the received message
+                    #             decrypted_message = decrypt_message_symmetric(shared_secret_key, incoming_encrypted_message, secret)
+                    #             print(f"{sender_name}: {decrypted_message}")
+                    #         else:
+                    #             break
+                    
+                    # # User inputs a message to send
+                    # outgoing_message = input(f"{username}: ").strip()
+                    
+                    # # Encrypt and send the message
+                    # encrypted_message = encrypt_message_symmetric(shared_secret_key, outgoing_message, secret)
+                    # send_message(sock, encrypted_message, sender_name)
 
                     if sender_name and sender_public_key:
-                        # Perform Diffie-Hellman key exchange to derive a shared secret key
+                        print(f"Initiating key exchange with {sender_name}")
                         shared_secret_key = symmetric_key_exchange(sock, username, sender_name, private_rsa_key, sender_public_key, False)
-                        secret = hashlib.sha256(shared_secret_key).hexdigest().encode()
+                        if not shared_secret_key:
+                            print("Failed to establish a secure connection. Exiting.")
+                            return
 
-                        
-                        while True:
-                            # Listen for incoming messages
-                            incoming_encrypted_message = receive_message(sock, username)
-                            if incoming_encrypted_message:
-                                # Decrypt the received message
-                                decrypted_message = decrypt_message_symmetric(shared_secret_key, incoming_encrypted_message, secret)
-                                print(f"{sender_name}: {decrypted_message}")
-                            else:
-                                break
+                        print(f"Shared secret key established. Length: {len(shared_secret_key)}")
+                        secret = hashlib.sha256(shared_secret_key.encode()).digest()
+                        print(f"Derived secret length: {len(secret)}")
 
-                            # User inputs a message to send
-                            outgoing_message = input(f"{username}: ").strip()
-                            
-                            # Encrypt and send the message
-                            encrypted_message = encrypt_message_symmetric(shared_secret_key, outgoing_message, secret)
-                            send_message(sock, encrypted_message, sender_name)
                 else:
                     print("Invalid mode selected.")
                     
