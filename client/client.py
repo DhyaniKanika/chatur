@@ -4,7 +4,8 @@ import getpass  # Import getpass to securely read password input
 
 def main():
     # Server details
-    server_hostname = 'chat.chatur.com'  # Define the server hostname
+    server_ip = '192.168.11.130' # we will use ip address for development, replace this with your server ip
+    server_hostname = "chat.chatur.com" # we will be using hostname in production
     server_port = 12345  # Define the server port number
     context = create_ssl_context()  # Create an SSL context for a secure connection
 
@@ -16,7 +17,7 @@ def main():
     # Create a TCP socket and connect to the server
     client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     with context.wrap_socket(client_socket, server_hostname=server_hostname) as sock:
-        sock.connect((server_hostname, server_port))  # Establish a connection to the server
+        sock.connect((server_ip, server_port))  # Establish a connection to the server
         print("Connected to server.")
 
         # Ask the user if they want to register or login

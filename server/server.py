@@ -6,12 +6,13 @@ from server_handlers import handle_client
 # Shared dictionaries to store active clients and public keys
 clients = {}
 user_public_keys = {}
-server_hostname = "chat.chatur.com"
+server_ip = '192.168.11.130' # we will use ip address for development, replace this with your server ip
+server_hostname = "chat.chatur.com" # we will be using hostname in production
 port=12345
 
 def main():
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((server_hostname, port))
+    server_socket.bind((server_ip, port))
     server_socket.listen(5) 
 
     # Load user data from file
