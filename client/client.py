@@ -4,7 +4,7 @@ import getpass
 
 def main():
     # Server details
-    server_hostname = 'server.localdomain'
+    server_hostname = 'chat.chatur.com'
     server_port = 12345
     context = create_ssl_context()
     # enc_password = getpass.getpass("enter the password for decrypting keys: ")
@@ -83,7 +83,7 @@ def main():
                             
                             # Encrypt and send the message
                             encrypted_message = encrypt_message_symmetric(shared_secret_key, outgoing_message, secret)
-                            send_message(sock, encrypted_message, chat_partner,secret)
+                            send_message(sock, encrypted_message, chat_partner)
 
                             # Listen for incoming messages
                             incoming_encrypted_message = receive_message(sock, username)

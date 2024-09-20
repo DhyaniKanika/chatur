@@ -1,9 +1,8 @@
 import json
 import ssl
 
-USER_DATA_FILE = 'user_data.json'
-KEYSTORE_PATH = 'keystore.pem'
-TRUSTSTORE_PATH = 'truststore.pem'
+USER_DATA_FILE = 'truststore/user_data.json'
+KEYSTORE_PATH = 'keystor/keystore.pem'
 
 def load_user_data():
     try:

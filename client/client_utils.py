@@ -3,29 +3,31 @@ import ssl
 import subprocess
 from client_keytools import *
 import secrets
-import base64
 import traceback
 
-TRUSTSTORE_PATH = 'truststore'
+SERVER_CRT_PATH = 'truststore/server.pem'
 
-# def create_ssl_context():
-#     # Create SSL context for server authentication
-#     context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-    
-#     # Load CA certificates for verifying the server
-#     context.load_verify_locations(cafile=TRUSTSTORE_PATH)
-#     return context
+def create_ssl_context():
+    # Create SSL context for server authentication
+    context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+
+    # Load CA certificates for verifying the server
+    context.check_hostname = True
+    context.verify_mode = ssl.CERT_REQUIRED  
+    context.load_verify_locations(SERVER_CRT_PATH)
+    return context
+
 
 #Since we use a self signed certificate for the demo, we will make our contesxt to trust any certificate that the server sends.
 # THIS IS ONLY FOR TESTING
-def create_ssl_context():
-    # Create s default SSL context for server authentication
-    context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
-    
-    # Trust whatever the server sends
-    context.check_hostname = False
-    context.verify_mode = ssl.CERT_NONE
-    return context
+#def create_ssl_context():
+#    # Create s default SSL context for server authentication
+#    context = ssl.create_default_context(ssl.Purpose.SERVER_AUTH)
+#    
+#    # Trust whatever the server sends
+#    context.check_hostname = False
+#    context.verify_mode = ssl.CERT_NONE
+#    return context
 
 # Function to hash the password using SHA-256
 def hash_password(password):
@@ -49,7 +51,7 @@ def login_user(sock, username, password):
     response = sock.recv(1024).decode()
     return response
 
-def send_message(client_socket, message, recipient_name,):
+def send_message(client_socket, message, recipient_name):
     try:
         client_socket.send(f'MESSAGE:{recipient_name}:{message}'.encode())
     except Exception as e:
