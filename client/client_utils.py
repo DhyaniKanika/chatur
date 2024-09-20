@@ -177,87 +177,42 @@ def initiate_chat(client_socket, username, recipient_name):
 
 # Symmetric key exchange logic (shared between Alice and Bob)
 def symmetric_key_exchange(sock, username, chat_partner, private_rsa_key, recipient_rsa_public_key, is_initiator):
-    print(f"Debug: Entering symmetric_key_exchange")
-    print(f"Debug: is_initiator = {is_initiator}")
     if is_initiator:
         symmetric_key = secrets.token_bytes(32)
-        print(f"Debug: Generated symmetric_key: {symmetric_key.hex()}")
         encrypted_key = encrypt_message_rsa(symmetric_key, recipient_rsa_public_key)
         if encrypted_key is None:
-            print("Debug: Failed to encrypt symmetric key")
+            print("Failed to encrypt symmetric key")
             return None
         request = f'CHAT_READY:{chat_partner}:{encrypted_key.decode()}'
         sock.send(request.encode())
-        print(f"Debug: Sent CHAT_READY request")
-        print(f"Debug: Encrypted key length: {len(encrypted_key)}")
         return symmetric_key
     else:
-        print("Debug: Waiting to receive encrypted symmetric key")
         symmetric_key = receive_encrypted_symetric_key(sock, username, private_rsa_key)
-        if symmetric_key:
-            print(f"Debug: Received symmetric_key: {symmetric_key.hex()}")
-        else:
-            print("Debug: Failed to receive symmetric key")
+        if symmetric_key is None:
+            print("Failed to receive symmetric key")
+            return None
         return symmetric_key
-# def symmetric_key_exchange(sock,username, chat_partner, private_rsa_key, recipient_rsa_public_key, is_initiator):
-#     # If initiator, send key first
-#     if is_initiator:
-#         symetric_key = (secrets.token_bytes(32))
-#         recipient_rsa_public_key = bytearray(
-#             recipient_rsa_public_key.split(':')[1].encode()
-#         )
-#         loaded_recipient_rsa_public_key = load_public_key(recipient_rsa_public_key)
-#         request = f'CHAT_READY:{chat_partner}:{encrypt_message_rsa(symetric_key, loaded_recipient_rsa_public_key)}'
-#         sock.send(request.encode())
-#         print(f"recipient_rsa_public_key {(recipient_rsa_public_key)}")
-#         print(f"Length of recipient_rsa_public_key {len(recipient_rsa_public_key)}")
-#         # sock.send(base64.b64encode(request.encode()))
-#     else:
-#         symetric_key = receive_encrypted_symetric_key(sock,username, private_rsa_key)
-    
-#     return symetric_key
 
 def receive_encrypted_symetric_key(sock, username, private_rsa_key):
     while True:
         response = sock.recv(1024).decode()
-        print(f"Received response: {response[:50]}...")  # Print first 50 chars
         if response.startswith('CHAT_READY'):
             _, receiver_name, encrypted_key = response.split(':', 2)
-            print(f"Receiver name: {receiver_name}, Encrypted key length: {len(encrypted_key)}")
             if receiver_name.strip() == username.strip():
                 try:
                     decrypted_symmetric_key = decrypt_message_rsa(encrypted_key, private_rsa_key)
                     if decrypted_symmetric_key:
-                        print(f"Successfully decrypted symmetric key, length: {len(decrypted_symmetric_key)}")
-                        print(f"Decrypted symmetric key (hex): {decrypted_symmetric_key.hex()}")
                         return decrypted_symmetric_key
                     else:
                         print("Failed to decrypt the symmetric key. Requesting a new one.")
                         sock.send(b'KEY_DECRYPTION_FAILED')
                 except Exception as e:
                     print(f"Error during symmetric key decryption: {e}")
-                    traceback.print_exc()
                     sock.send(b'KEY_DECRYPTION_FAILED')
         else:
             print(f"Unexpected response: {response[:50]}...")  # Print first 50 chars
+            break
     return None
-
-# def receive_encrypted_symetric_key(sock, username, private_rsa_key):
-#     # Receive the encrypted symetric key from the server
-#     while True:
-#         response = sock.recv(1024).decode()
-        
-#         # Decrypt the key using the client's own RSA private key
-#         if response.startswith('CHAT_READY'):
-#             _, reciever_name, message = response.split(':', 2)
-#             # print(message)
-#             if reciever_name == username:
-#                 decrypted_symetric_key = decrypt_message_rsa(decrypt_message_rsa(message, private_rsa_key))
-#                 # decrypted_symetric_key = decrypt_message_rsa(message, private_rsa_key)
-#                 print(decrypted_symetric_key)
-#                 # print(decrypted_symetric_key.decode())
-#                 # return decrypted_symetric_key.decode()
-#             return None
 
 
 def decrypt_truststore(encrypted_file: str, decrypted_file: str, password: str):

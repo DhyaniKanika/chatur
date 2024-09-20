@@ -12,41 +12,27 @@ import traceback
 import os
 import base64
 
-# Load RSA keys from files
+# Load RSA keys from file
 def load_private_key_from_file(password: bytes):
     try:
         with open('keystore/client.key', 'rb') as f:
             private_key_data = f.read()
-        print(f"Loaded private key data, length: {len(private_key_data)}")
         private_key = load_pem_private_key(
             private_key_data,
             password=password,
         )
-        print(f"Successfully loaded private key, type: {type(private_key)}")
+        print(f"Successfully loaded private key.")
         return private_key
     except Exception as e:
         print(f"Error loading private key: {type(e).__name__}: {e}")
         traceback.print_exc()
         return None
-# def load_private_key_from_file(password: bytes):
-#     # Load and decrypt the private key
-#     with open('keystore/client.key', 'rb') as f:
-#         private_key = load_pem_private_key(
-#             f.read(),
-#             password=password,
-#         )
-#     return private_key
-
-
 
 # Encrypt a message using an RSA public key
 def encrypt_message_rsa(message, public_key):
     try:
-        print(f"Encrypting message of length: {len(message)}")
         loaded_public_key = load_public_key(public_key)
-        print(f"Loaded public key type: {type(loaded_public_key)}")
-        print(f"Loaded public key size: {loaded_public_key.key_size}")
-        encrypted = loaded_public_key.encrypt(
+        encrypted_message = loaded_public_key.encrypt(
             message,
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA256()),
@@ -54,67 +40,32 @@ def encrypt_message_rsa(message, public_key):
                 label=None
             )
         )
-        encoded = base64.b64encode(encrypted)
-        print(f"RSA Encryption - Original message length: {len(message)}")
-        print(f"RSA Encryption - Encrypted message length: {len(encrypted)}")
-        print(f"RSA Encryption - Base64 encoded message length: {len(encoded)}")
-        return encoded
+        encoded_message = base64.b64encode(encrypted_message)
+        return encoded_message
     except Exception as e:
         print(f"RSA Encryption error: {type(e).__name__}: {e}")
         traceback.print_exc()
         return None
-# def encrypt_message_rsa(message, public_key):
-#     return public_key.encrypt(
-#         message,
-#         padding.OAEP(
-#             mgf=padding.MGF1(algorithm=hashes.SHA256()),
-#             algorithm=hashes.SHA256(),
-#             label=None
-#         )
-#     )
 
 # Decrypt a message using an RSA private key
 def decrypt_message_rsa(encrypted_message, private_key):
     try:
-        decoded = base64.b64decode(encrypted_message)
-        print(f"RSA Decryption - Received message length: {len(encrypted_message)}")
-        print(f"RSA Decryption - Decoded message length: {len(decoded)}")
-        print(f"RSA Decryption - Private key size: {private_key.key_size}")
-        print(f"RSA Decryption - Private key type: {type(private_key)}")
-        decrypted = private_key.decrypt(
-            decoded,
+        decoded_message = base64.b64decode(encrypted_message)
+        decrypted_message = private_key.decrypt(
+            decoded_message,
             padding.OAEP(
                 mgf=padding.MGF1(algorithm=hashes.SHA256()),
                 algorithm=hashes.SHA256(),
                 label=None
             )
         )
-        print(f"RSA Decryption - Decrypted message length: {len(decrypted)}")
-        return decrypted
+        return decrypted_message
     except ValueError as e:
         print(f"RSA Decryption error (ValueError): {e}")
-        print(f"Encrypted message (first 50 bytes): {encrypted_message[:50]}")
-        print(f"Decoded message (first 50 bytes): {decoded[:50].hex()}")
     except Exception as e:
         print(f"RSA Decryption error: {type(e).__name__}: {e}")
         traceback.print_exc()
     return None
-# def decrypt_message_rsa(encrypted_message, private_key):
-#     return private_key.decrypt(
-#         encrypted_message,
-#         padding.OAEP(
-#             mgf=padding.MGF1(algorithm=hashes.SHA256()),
-#             algorithm=hashes.SHA256(),
-#             label=None
-#         )
-#     )#.decode()
-
-# # Generate DH key pair
-# def generate_dh_keys():
-#     parameters = dh.generate_parameters(generator=2, key_size=2048, backend=default_backend())
-#     private_key = parameters.generate_private_key()
-#     public_key = private_key.public_key()
-#     return private_key, public_key
 
 # Serialize a public key to send it over the network
 def serialize_public_key(public_key):
@@ -129,66 +80,30 @@ def load_public_key(pem_data):
         if isinstance(pem_data, str):
             pem_data = pem_data.encode()
         public_key = serialization.load_pem_public_key(pem_data)
-        print(f"Loaded public key successfully. Key size: {public_key.key_size}")
         return public_key
     except Exception as e:
         print(f"Error loading public key: {type(e).__name__}: {e}")
         traceback.print_exc()
         return None
-# def load_public_key(pem_data):
-#     return serialization.load_pem_public_key(pem_data, backend=default_backend())
 
-# # Perform the DH key exchange and derive a shared key
-# def derive_shared_secret(private_key, public_key, peer_public_key):
-#     shared_secret = private_key.exchange(peer_public_key)
-#     public_keys = sorted([public_key, peer_public_key], key=lambda x: x)
-#     concatenated_public_keys = public_keys[0] + public_keys[1]
-#     salt = hashlib.sha256(concatenated_public_keys).digest()
-#     # Derive a key from the shared secret
-#     return HKDF(
-#         algorithm=hashes.SHA256(),
-#         length=32,
-#         salt=salt,
-#         info=b'handshake data',
-#         backend=default_backend()
-#     ).derive(shared_secret)
 
 # Encrypt message using AES-GCM (symmetric key)
 def encrypt_message_symmetric(key, plaintext, associated_data = None):
-    print(f"\nPlaintext message: {plaintext}")
     message = base64.b64encode(plaintext.encode())
     aesgcm = AESGCM(key)
-    print(f"\nEncrypt AES key: {key}")
     nonce = os.urandom(12)
-    print(f"Encrypt AES nonce: {nonce}")
     ciphertext = aesgcm.encrypt(nonce, message, associated_data)
     encoded_message = base64.urlsafe_b64encode(nonce + ciphertext).decode()
-    print(f"Encryption - Plaintext length: {len(plaintext)}")
-    print(f"Encryption - Ciphertext length: {len(ciphertext)}")
-    print(f"Encryption - Encoded message length: {len(encoded_message)}")
-    print(f"Encryption - Associated data: {associated_data}")
     return encoded_message
-# def encrypt_message_symmetric(key, plaintext, associated_data):
-#     aesgcm = AESGCM(key)
-#     nonce = os.urandom(12)
-#     message = base64.b64encode(plaintext.encode())
-#     ciphertext = aesgcm.encrypt(nonce, message, associated_data)
-#     return nonce + ciphertext  # Return nonce with the ciphertext for decryption
+
 
 # Decrypt message using AES-GCM (symmetric key)
 def decrypt_message_symmetric(key, encrypted_message, associated_data = None):
     aesgcm = AESGCM(key)
-    print(f"\nDecrypt AES key: {key}")
     try:
-        print(f"Attempting to decode: {encrypted_message}")
         decoded_message = base64.urlsafe_b64decode(encrypted_message)
-        print(f"Decoded message: {decoded_message}")
-        print(f"Decoded message length: {len(decoded_message)}")
         nonce = decoded_message[:12]
-        print(f"Decrypt AES nonce: {nonce}")
         ciphertext = decoded_message[12:]
-        print(f"Nonce length: {len(nonce)}, Ciphertext length: {len(ciphertext)}")
-        print(f"Decryption - Associated data: {associated_data}")
         plaintext = aesgcm.decrypt(nonce, ciphertext, associated_data)
         return plaintext.decode()
     except InvalidTag:
@@ -198,12 +113,6 @@ def decrypt_message_symmetric(key, encrypted_message, associated_data = None):
     except Exception as e:
         print(f"Unexpected error in decryption: {type(e).__name__}: {e}")
     return None
-# def decrypt_message_symmetric(key, ciphertext, associated_data):
-#     aesgcm = AESGCM(key)
-#     nonce = ciphertext[:12]
-#     actual_ciphertext = ciphertext[12:]
-#     message = base64.b64decode(actual_ciphertext)
-#     return aesgcm.decrypt(nonce, message, associated_data).decode()
 
 # # Sign a message using private key
 # def sign_message(private_key, message):

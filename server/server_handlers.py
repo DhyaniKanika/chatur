@@ -41,8 +41,6 @@ def handle_client(client_socket, clients, user_data, user_public_keys):
                     
                 elif command == 'CHAT_READY':
                     tmp_message_parts = [message_parts[0], ':'.join(message_parts[1:])]
-                    print(tmp_message_parts) 
-                    # handle_chat_ready([message_parts[0], message_parts[1]], clients)
                     handle_chat_ready(tmp_message_parts[0], tmp_message_parts[1], clients)
                     
 
@@ -91,7 +89,6 @@ def handle_get_users(client_socket, clients):
 def handle_get_public_key(client_socket, message_parts, user_public_keys):
     recipient_name = message_parts[0]
     if recipient_name in user_public_keys:
-        # client_socket.send(user_public_keys[recipient_name].encode())
         client_socket.send(str(f"PUBLIC_KEY:{user_public_keys[recipient_name]}").encode())
     else:
         client_socket.send(b'PUBLIC_KEY_NOT_FOUND')
@@ -125,7 +122,6 @@ def handle_message(sender_socket, recipient_username, message_body, clients):
     else:
         sender_socket.send(f'USER_NOT_FOUND:{recipient_username}'.encode())
         
-# def handle_chat_ready(client_socket, message_parts, clients):
 def handle_chat_ready(recipient_username, data, clients):
 
     if recipient_username in clients:
