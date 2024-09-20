@@ -49,30 +49,21 @@ def login_user(sock, username, password):
     response = sock.recv(1024).decode()
     return response
 
-def send_message(client_socket, message, recipient_name, secret):
+def send_message(client_socket, message, recipient_name,):
     try:
         client_socket.send(f'MESSAGE:{recipient_name}:{message}'.encode())
     except Exception as e:
         print(f"Error sending message to {recipient_name}: {e}")
         traceback.print_exc()
-# def send_message(client_socket, message, recipient_name):
-#     try:
-#         client_socket.send(f'MESSAGE:{recipient_name}:{message}'.encode())
-#     except Exception as e:
-#         print(f"Error sending message to {recipient_name}: {e}")
 
-def receive_message(client_socket, username, secret):
+def receive_message(client_socket, username):
     try:
         while True:
             server_message = client_socket.recv(1024).decode()
-            print(f"Received raw message: {server_message}")
             if server_message.startswith('MESSAGE'):
                 _, receiver_name, encoded_message = server_message.split(':', 2)
-                print(f"Received message for: {receiver_name}")
                 if receiver_name.strip() == username.strip():
-                    print(f"Encrypted message: {encoded_message}")
-                    decrypted_message = decrypt_message_symmetric(secret, encoded_message)
-                    return decrypted_message
+                    return encoded_message
             else:
                 print(f"Unexpected message format: {server_message}")
                 return None
@@ -148,32 +139,6 @@ def initiate_chat(client_socket, username, recipient_name):
     except Exception as e:
         print(f"Error initiating chat with {recipient_name}: {e}")
         return None
-# def initiate_chat(client_socket, username, recipient_name):
-#     try:
-#         request = f'REQUEST_CHAT:{username}:{recipient_name}'
-#         client_socket.send(request.encode())
-#         server_response = client_socket.recv(1024).decode()
-#         print(server_response)
-#         if server_response.startswith('USER_NOT_FOUND'):
-#             print(f"User {recipient_name} not found.")
-#             return None
-#         elif server_response.startswith('USER_BUSY'):
-#             print(f"User {recipient_name} is currently busy.")
-#             return None
-#         elif server_response.startswith('CHAT_ACCEPT'):
-#             request = f'GET_PUBLIC_KEY:{recipient_name}'
-#             client_socket.send(request.encode())
-#             while True:
-#                 public_key_pem = client_socket.recv(1024).decode()
-#                 if public_key_pem.startswith('PUBLIC_KEY_NOT_FOUND'):
-#                     print(f"Public key for {recipient_name} not found on the server.")
-#                     return None
-#                 elif public_key_pem.startswith('PUBLIC_KEY'):
-#                     print(f"Chat initiated with {recipient_name}. You can start messaging.")
-#                     return recipient_name, public_key_pem
-#     except Exception as e:
-#         print(f"Error initiating chat with {recipient_name}: {e}")
-#         return None
 
 # Symmetric key exchange logic (shared between Alice and Bob)
 def symmetric_key_exchange(sock, username, chat_partner, private_rsa_key, recipient_rsa_public_key, is_initiator):

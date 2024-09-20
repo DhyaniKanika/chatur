@@ -77,76 +77,56 @@ def main():
                             print(f"Error creating secret: {e}")
                             return
                         
-                        # Test message
-                        test_message = "Hello, this is a test message!"
-                        print(f"Original test message: {test_message}")
-                        encrypted_message = encrypt_message_symmetric(secret, test_message)
-                        print(f"Sending encrypted message: {encrypted_message}")
-                        send_message(sock, encrypted_message, chat_partner,secret)
-                        
-                        # while True:
-                        #     # User inputs a message to send
-                        #     outgoing_message = input(f"{username}: ").strip()
+                        while True:
+                            # User inputs a message to send
+                            outgoing_message = input(f"{username}: ").strip()
                             
-                        #     # Encrypt and send the message
-                        #     encrypted_message = encrypt_message_symmetric(shared_secret_key, outgoing_message, secret)
-                        #     print(encrypted_message)
-                        #     send_message(sock, encrypted_message, chat_partner,secret)
+                            # Encrypt and send the message
+                            encrypted_message = encrypt_message_symmetric(shared_secret_key, outgoing_message, secret)
+                            send_message(sock, encrypted_message, chat_partner,secret)
 
-                        #     # Listen for incoming messages
-                        #     incoming_encrypted_message = receive_message(sock, username)
-                        #     if incoming_encrypted_message:
-                        #         # Decrypt the received message
-                        #         decrypted_message = decrypt_message_symmetric(shared_secret_key, incoming_encrypted_message, secret)
-                        #         print(f"{recipient_name}: {decrypted_message}")
-                        #     else:
-                        #         break
+                            # Listen for incoming messages
+                            incoming_encrypted_message = receive_message(sock, username)
+                            if incoming_encrypted_message:
+                                # Decrypt the received message
+                                decrypted_message = decrypt_message_symmetric(shared_secret_key, incoming_encrypted_message, secret)
+                                print(f"{recipient_name}: {decrypted_message}")
+                            else:
+                                break
 
                 elif mode == 'wait':                   
-                    # if sender_name and sender_public_key:
-                    #     shared_secret_key = symmetric_key_exchange(sock, username, sender_name, private_rsa_key, sender_public_key, False)
-                    #     secret = hashlib.sha256(shared_secret_key).hexdigest().encode()
-
-                    #     print(f"secret: {secret}")
-                        
-                    #     while True:
-                    #         # Listen for incoming messages
-                    #         incoming_encrypted_message = receive_message(sock, username)
-                    #         if incoming_encrypted_message:
-                    #             # Decrypt the received message
-                    #             decrypted_message = decrypt_message_symmetric(shared_secret_key, incoming_encrypted_message, secret)
-                    #             print(f"{sender_name}: {decrypted_message}")
-                    #         else:
-                    #             break
-                    
-                    # # User inputs a message to send
-                    # outgoing_message = input(f"{username}: ").strip()
-                    
-                    # # Encrypt and send the message
-                    # encrypted_message = encrypt_message_symmetric(shared_secret_key, outgoing_message, secret)
-                    # send_message(sock, encrypted_message, sender_name)
 
                     # User waits for an incoming chat request
                     print("Waiting for an incoming chat request...")
                     sender_name, sender_public_key = listen_for_incoming_requests(sock, username)
                     
                     if sender_name and sender_public_key:
-                        print(f"Initiating key exchange with {sender_name}")
                         shared_secret_key = symmetric_key_exchange(sock, username, sender_name, private_rsa_key, sender_public_key, False)
                         if not shared_secret_key:
                             print("Failed to establish a secure connection. Exiting.")
                             return
 
-                        secret = hashlib.sha256(shared_secret_key).digest()
-                      
-                        print("Waiting for test message...")
+                        try:
+                            secret = hashlib.sha256(shared_secret_key).digest()
+                        except Exception as e:
+                            print(f"Error creating secret: {e}")
+                            return
 
-                        encrypted_message = receive_message(sock, username, secret)
-                        decoded_message = base64.urlsafe_b64decode(encrypted_message)
-                        if encrypted_message:
-                            print(f"Received message: {decoded_message}")
-                        else:
-                            print("Failed to decrypt the message.")
+                        # Listen for incoming messages
+                        while True:
+                            incoming_encrypted_message = receive_message(sock, username)
+                            if incoming_encrypted_message:
+                                # Decrypt the received message
+                                decrypted_message = decrypt_message_symmetric(shared_secret_key, incoming_encrypted_message, secret)
+                                print(f"{sender_name}: {decrypted_message}")
+                            else:
+                                break
+
+                            outgoing_message = input(f"{username}: ").strip()
+                    
+                            # Encrypt and send the message
+                            encrypted_message = encrypt_message_symmetric(shared_secret_key, outgoing_message, secret)
+                            send_message(sock, encrypted_message, sender_name)
                         
                 else:
                     print("Invalid mode selected.")

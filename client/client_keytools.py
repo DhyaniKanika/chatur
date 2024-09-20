@@ -104,8 +104,9 @@ def decrypt_message_symmetric(key, encrypted_message, associated_data = None):
         decoded_message = base64.urlsafe_b64decode(encrypted_message)
         nonce = decoded_message[:12]
         ciphertext = decoded_message[12:]
-        plaintext = aesgcm.decrypt(nonce, ciphertext, associated_data)
-        return plaintext.decode()
+        encoded_plaintext = aesgcm.decrypt(nonce, ciphertext, associated_data)
+        decodeded_plaintext = base64.urlsafe_b64decode(encoded_plaintext)
+        return decodeded_plaintext.decode()
     except InvalidTag:
         print("Error: Message authentication failed. The message may have been tampered with.")
     except ValueError as e:
