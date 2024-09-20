@@ -56,7 +56,6 @@ def send_message(client_socket, message, recipient_name):
         client_socket.send(f'MESSAGE:{recipient_name}:{message}'.encode())
     except Exception as e:
         print(f"Error sending message to {recipient_name}: {e}")
-        traceback.print_exc()
 
 def receive_message(client_socket, username):
     try:
@@ -72,19 +71,7 @@ def receive_message(client_socket, username):
     except Exception as e:
         print(f"Error receiving message: {type(e).__name__}: {e}")
         return None
-# def receive_message(client_socket, username):
-#     try:
-#         while True:
-#             server_message = client_socket.recv(1024).decode()
-#             if server_message.startswith('MESSAGE'):
-#                 _, reciever_name, message = server_message.split(':', 2)
-#                 if reciever_name.strip() == username.strip():
-#                     return message 
-#             else:
-#                 print(f"Unexpected message")
-#                 return None
-#     except Exception as e:
-#         print(f"Error receiving message: {e}")
+
 
 def listen_for_incoming_requests(client_socket, username):
     try:
@@ -102,7 +89,6 @@ def listen_for_incoming_requests(client_socket, username):
                         client_socket.send(request.encode())
                         while True:
                             public_key_pem = client_socket.recv(1024).decode()
-                            print(f"public_key_pem: {public_key_pem}")
                             if public_key_pem.startswith('PUBLIC_KEY_NOT_FOUND'):
                                 print(f"Public key for {sender_name} not found on the server.")
                                 return None
@@ -120,7 +106,6 @@ def initiate_chat(client_socket, username, recipient_name):
         request = f'REQUEST_CHAT:{username}:{recipient_name}'
         client_socket.send(request.encode())
         server_response = client_socket.recv(1024).decode()
-        print(server_response)
         if server_response.startswith('USER_NOT_FOUND'):
             print(f"User {recipient_name} not found.")
             return None
@@ -180,32 +165,3 @@ def receive_encrypted_symetric_key(sock, username, private_rsa_key):
             print(f"Unexpected response: {response[:50]}...")  # Print first 50 chars
             break
     return None
-
-
-def decrypt_truststore(encrypted_file: str, decrypted_file: str, password: str):
-    """Decrypt the encrypted truststore file."""
-    try:
-        subprocess.run([
-            'openssl', 'enc', '-d', '-aes-256-cbc',
-            '-in', encrypted_file,
-            '-out', decrypted_file,
-            '-pass', f'pass:{password}'
-        ], check=True)
-        print(f"Decrypted truststore saved to: {decrypted_file}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error during decryption: {e}")
-        raise
-
-def encrypt_truststore(decrypted_file: str, encrypted_file: str, password: str):
-    """Encrypt the truststore file."""
-    try:
-        subprocess.run([
-            'openssl', 'enc', '-aes-256-cbc',
-            '-salt', '-in', decrypted_file,
-            '-out', encrypted_file,
-            '-pass', f'pass:{password}'
-        ], check=True)
-        print(f"Encrypted truststore saved to: {encrypted_file}")
-    except subprocess.CalledProcessError as e:
-        print(f"Error during encryption: {e}")
-        raise

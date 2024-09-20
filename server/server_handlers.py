@@ -8,9 +8,7 @@ def handle_client(client_socket, clients, user_data, user_public_keys):
             print(client_socket)
             try:
                 message = client_socket.recv(1024)
-                print(message)
                 if not message:
-                    print("No message")
                     break
 
                 command, *message_parts = message.decode().split(':')
@@ -67,6 +65,7 @@ def handle_registration(client_socket, message_parts, user_data):
             f.write(client_public_key)
 
         client_socket.send(b'REGISTERED')
+        print(f'{client_name} registerd successfully')
 
 def handle_login(client_socket, message_parts, clients, user_data, user_public_keys):
     client_name = message_parts[0]
@@ -78,6 +77,7 @@ def handle_login(client_socket, message_parts, clients, user_data, user_public_k
         if user_public_keys[client_name] is None:
             client_socket.send(b'PUBLIC_KEY_MISSING')
         else:
+            print(f'{client_name} has LOGGED IN')
             client_socket.send(b'LOGIN_SUCCESS')
     else:
         client_socket.send(b'LOGIN_FAILED')
@@ -96,6 +96,7 @@ def handle_get_public_key(client_socket, message_parts, user_public_keys):
 def handle_chat_request(sender_username, recipient_username, sender_socket, clients):
     if recipient_username in clients:
         recipient_socket = clients[recipient_username]
+        print(f'CHAT_REQUEST from {sender_username} to {recipient_username}')
         recipient_socket.send(f'CHAT_REQUEST:{sender_username}'.encode())
     else:
         sender_socket.send(f'USER_NOT_FOUND:{recipient_username}'.encode())
@@ -106,6 +107,7 @@ def handle_accept_chat(sender_username, recipient_username, clients):
         sender_socket.send(f'CHAT_ACCEPT:{recipient_username}'.encode())
         recipient_socket = clients[recipient_username]
         recipient_socket.send(f'CHAT_ACCEPT:{sender_username}'.encode())
+        print(f'{sender_username}is TALKING to {recipient_username}')
     else:
         recipient_socket = clients[recipient_username]
         recipient_socket.send(f'USER_NOT_FOUND:{sender_username}'.encode())
