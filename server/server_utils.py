@@ -5,7 +5,7 @@ import ssl
 USER_DATA_FILE = 'truststore/user_data.json'
 
 # Path to the keystore where the server's certificate and private key are stored
-KEYSTORE_PATH = 'keystor/keystore.pem'
+KEYSTORE_PATH = 'keystore/keystore.pem'
 
 # Load user data (credentials) from the JSON file
 # If the file doesn't exist, return an empty dictionary
